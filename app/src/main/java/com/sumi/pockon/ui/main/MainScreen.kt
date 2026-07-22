@@ -293,13 +293,11 @@ private fun checkPermission(context: Context): Array<String> {
     val permissions = if (Build.VERSION.SDK_INT >= 33) {
         arrayOf(
             Manifest.permission.POST_NOTIFICATIONS,
-            Manifest.permission.READ_MEDIA_IMAGES,
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION
         )
     } else {
         arrayOf(
-            Manifest.permission.READ_EXTERNAL_STORAGE,
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION
         )

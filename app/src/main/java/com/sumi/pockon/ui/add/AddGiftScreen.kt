@@ -449,20 +449,22 @@ fun CustomDatePickerDialog(
 
 /** 사진 권한 체크 */
 fun checkPhotoPermission(context: Context): Boolean {
-    val permissions = if (Build.VERSION.SDK_INT >= 33) {
-        arrayOf(
-            Manifest.permission.READ_MEDIA_IMAGES,
-        )
-    } else {
-        arrayOf(
-            Manifest.permission.READ_EXTERNAL_STORAGE,
-        )
-    }
+//    val permissions = if (Build.VERSION.SDK_INT >= 33) {
+//        arrayOf(
+//            Manifest.permission.READ_MEDIA_IMAGES,
+//        )
+//    } else {
+//        arrayOf(
+//            Manifest.permission.READ_EXTERNAL_STORAGE,
+//        )
+//    }
+//
+//    return permissions.all {
+//        ContextCompat.checkSelfPermission(
+//            context,
+//            it
+//        ) == PackageManager.PERMISSION_GRANTED
+//    }
 
-    return permissions.all {
-        ContextCompat.checkSelfPermission(
-            context,
-            it
-        ) == PackageManager.PERMISSION_GRANTED
-    }
+    return true
 }
