@@ -123,7 +123,7 @@ class AddViewModel @Inject constructor(
 
     fun setPhoto(photo: Bitmap?) {
         _photo.value = photo
-        photo?.let { analyzeImage(it) }
+//        photo?.let { analyzeImage(it) }
     }
 
     fun changeDatePickerState() {
