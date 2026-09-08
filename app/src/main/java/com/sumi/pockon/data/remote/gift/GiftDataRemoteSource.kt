@@ -35,6 +35,14 @@ class GiftDataRemoteSource @Inject constructor(
             .await()
     }
 
+    suspend fun loadGifts(uid: String): List<Gift> = firestore
+        .collection("gift")
+        .whereEqualTo("uid", uid)
+        .get()
+        .await()
+        .documents
+        .mapNotNull { document -> document.toObject(Gift::class.java) }
+
     fun uploadData(gift: Gift, onComplete: (String?) -> Unit) {
         val document = firestore
             .collection("gift")

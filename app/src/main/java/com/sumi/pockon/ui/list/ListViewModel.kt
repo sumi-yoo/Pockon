@@ -10,6 +10,7 @@ import com.sumi.pockon.data.repository.PreferenceRepository
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.data.repository.AlarmRepository
 import com.sumi.pockon.data.repository.GiftRepository
+import com.sumi.pockon.domain.usecase.SyncGiftListUseCase
 import com.sumi.pockon.util.NetworkMonitor
 import com.sumi.pockon.util.loadImageFromPath
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,6 +26,7 @@ import kotlin.collections.ArrayList
 @HiltViewModel
 class ListViewModel @Inject constructor(
     private val giftRepository: GiftRepository,
+    private val syncGiftListUseCase: SyncGiftListUseCase,
     private val preferenceRepository: PreferenceRepository,
     private val alarmRepository: AlarmRepository,
     private val networkMonitor: NetworkMonitor
@@ -33,7 +35,6 @@ class ListViewModel @Inject constructor(
     private var uid = preferenceRepository.getUid()
     private var isGuestMode = preferenceRepository.isGuestMode()
     private var isRefresh = false
-    private var isDelete = false
     private var removeGift: Gift? = null
 
     private val _giftList = mutableStateOf<List<Gift>>(listOf())
@@ -105,41 +106,35 @@ class ListViewModel @Inject constructor(
                     _giftList.value = listOf()
                     _copyGiftList.value = listOf()
                     filterList = listOf()
+                    if (isRefresh) {
+                        toggleIsScrollTop()
+                        isRefresh = false
+                    }
                 }
             }
         }
     }
 
     // 서버에서 기프티콘 리스트 가져오기
-    fun getGiftList(onComplete: () -> Unit) {
+    suspend fun refreshGiftList() {
         filterList = listOf()
         if (isGuestMode) {
-            onComplete()
             sortChips()
             filterList()
-            orderBy(true)
+            orderBy()
+            toggleIsScrollTop()
             return
-        } // 게스트 모드는 서버 안탐
+        }
 
         if (!networkMonitor.isConnected()) {
-            onComplete()
             _isShowNoInternetDialog.value = true
             return
         }
 
-        giftRepository.getAllGift(uid) { giftList ->
-            isRefresh = true
-            onComplete()
-            if (giftList.isNotEmpty()) {
-                // 로컬 저장(기프티콘)
-                viewModelScope.launch(Dispatchers.IO) {
-                    giftRepository.deleteAllAndInsertGifts(giftList)
-                }
-            } else {
-                _giftList.value = listOf()
-                _copyGiftList.value = listOf()
-                filterList = listOf()
-            }
+        isRefresh = true
+        val result = syncGiftListUseCase(uid)
+        if (result.isFailure) {
+            isRefresh = false
         }
     }
 
@@ -188,7 +183,8 @@ class ListViewModel @Inject constructor(
         _chipElement.value = beforeElements
         filterList = beforeFilters
         filterList()
-        orderBy(true)
+        orderBy()
+        toggleIsScrollTop()
         clearCheckedGiftList()
     }
 
@@ -200,7 +196,7 @@ class ListViewModel @Inject constructor(
         _copyGiftList.value = filtered
     }
 
-    fun orderBy(flag: Boolean = false) {
+    fun orderBy() {
         when (_topTitle.intValue) {
             R.string.top_app_bar_recent -> { // 최신순
                 val dateFormat = SimpleDateFormat("yyyyMMddHHmmss", Locale.KOREA)
@@ -228,10 +224,9 @@ class ListViewModel @Inject constructor(
                 )
             }
         }
-        if (isRefresh || flag || (isDelete && filterList.isEmpty())) {
+        if (isRefresh) {
             toggleIsScrollTop()
             isRefresh = false
-            isDelete = false
         }
     }
 
@@ -252,7 +247,6 @@ class ListViewModel @Inject constructor(
             // 수정 성공
             if (result) {
                 // 로컬 수정
-                isDelete = filterList.isNotEmpty()
                 viewModelScope.launch(Dispatchers.IO) {
                     giftRepository.insertGift(updateGift)
                 }
@@ -281,7 +275,6 @@ class ListViewModel @Inject constructor(
         giftRepository.removeGift(isGuestMode, uid, id) { result ->
             if (result) {
                 // 로컬 삭제
-                isDelete = filterList.isNotEmpty()
                 viewModelScope.launch(Dispatchers.IO) {
                     giftRepository.deleteGift(id)
                 }
@@ -346,7 +339,6 @@ class ListViewModel @Inject constructor(
                             alarmRepository.cancelAlarm(id, preferenceRepository.getNotiEndDtDay())
                         }
                         // 로컬 삭제
-                        isDelete = filterList.isNotEmpty()
                         viewModelScope.launch(Dispatchers.IO) {
                             giftRepository.deleteGifts(idList)
                         }

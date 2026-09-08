@@ -24,6 +24,26 @@ class GiftRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context
 ) : GiftRepository {
 
+    override suspend fun syncGifts(uid: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val gifts = giftDataRemoteSource.loadGifts(uid)
+            val photos = giftPhotoRemoteDataSource.downloadPhotos(
+                uid = uid,
+                ids = gifts.map(Gift::id)
+            )
+            val giftEntities = gifts.map { gift ->
+                gift.copy(photo = photos[gift.id]).toEntity(gift.id, context)
+            }
+
+            giftLocalDataSource.deleteAllAndInsertGifts(giftEntities)
+            Result.success(Unit)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Result.failure(exception)
+        }
+    }
+
     override suspend fun addGift(isGuestMode: Boolean, gift: Gift): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {

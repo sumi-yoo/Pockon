@@ -3,6 +3,8 @@ package com.sumi.pockon.domain.repository
 import com.sumi.pockon.data.model.Gift
 
 interface GiftRepository {
+    suspend fun syncGifts(uid: String): Result<Unit>
+
     suspend fun addGift(isGuestMode: Boolean, gift: Gift): Result<Unit>
 
     suspend fun updateGift(
