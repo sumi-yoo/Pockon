@@ -49,4 +49,30 @@ class BrandRepositoryImpl @Inject constructor(
             Result.failure(exception)
         }
     }
+
+    override suspend fun getCachedBrands(): Result<Map<String, List<Document>>> =
+        withContext(Dispatchers.IO) {
+            try {
+                Result.success(
+                    localDataSource.getAllBrands().associate { brand ->
+                        brand.keyword to brand.documents
+                    }
+                )
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                Result.failure(exception)
+            }
+        }
+
+    override suspend fun clearCachedBrands(): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            localDataSource.deleteAllBrands()
+            Result.success(Unit)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Result.failure(exception)
+        }
+    }
 }

@@ -7,11 +7,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.sumi.pockon.data.repository.PreferenceRepository
-import com.sumi.pockon.data.repository.BrandSearchRepository
 import com.sumi.pockon.data.repository.GiftRepository
 import com.sumi.pockon.data.repository.LoginRepository
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.data.repository.AlarmRepository
+import com.sumi.pockon.domain.usecase.ClearBrandCacheUseCase
 import com.sumi.pockon.util.NetworkMonitor
 import com.sumi.pockon.util.loadImageFromPath
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,7 +25,7 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val loginRepository: LoginRepository,
     private val giftRepository: GiftRepository,
-    private val brandSearchRepository: BrandSearchRepository,
+    private val clearBrandCacheUseCase: ClearBrandCacheUseCase,
     private val preferenceRepository: PreferenceRepository,
     private val alarmRepository: AlarmRepository,
     private val networkMonitor: NetworkMonitor
@@ -89,7 +89,7 @@ class SettingsViewModel @Inject constructor(
                     alarmRepository.cancelAlarm(gift.id, preferenceRepository.getNotiEndDtDay())
                 }
                 giftRepository.deleteAllGift()
-                brandSearchRepository.deleteAllBrands()
+                clearBrandCacheUseCase()
             }
         }
     }
@@ -124,7 +124,7 @@ class SettingsViewModel @Inject constructor(
                                 alarmRepository.cancelAlarm(gift.id, preferenceRepository.getNotiEndDtDay())
                             }
                             giftRepository.deleteAllGift()
-                            brandSearchRepository.deleteAllBrands()
+                            clearBrandCacheUseCase()
                         }
                         if (!isGuestMode) {
                             if (credential == null) {

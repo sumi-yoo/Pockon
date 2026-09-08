@@ -9,8 +9,6 @@ import com.sumi.pockon.data.local.gift.GiftDatabase
 import com.sumi.pockon.data.repository.GiftRepository
 import com.sumi.pockon.data.repository.LoginRepository
 import com.sumi.pockon.R
-import com.sumi.pockon.data.repository.BrandSearchRepository
-import com.sumi.pockon.data.remote.brand.BrandSearchRemoteDataSource
 import com.sumi.pockon.data.remote.brand.KaKaoSearchAPI
 import com.sumi.pockon.data.local.gift.GiftLocalDataSource
 import com.sumi.pockon.data.local.brand.BrandDao
@@ -81,14 +79,6 @@ class DiModule {
     @Provides
     fun provideGiftDataRemoteSource(firestore: FirebaseFirestore): GiftDataRemoteSource {
         return GiftDataRemoteSource(firestore)
-    }
-
-    @Singleton
-    @Provides
-    fun provideBrandSearchRepository(
-        brandSearchRemoteDataSource: BrandSearchRemoteDataSource, brandLocalDataSource: BrandLocalDataSource
-    ): BrandSearchRepository {
-        return BrandSearchRepository(brandSearchRemoteDataSource, brandLocalDataSource)
     }
 
     @Singleton

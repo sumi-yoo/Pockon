@@ -1,7 +1,6 @@
 package com.sumi.pockon.data.remote.brand
 
 import com.sumi.pockon.data.model.Brands
-import retrofit2.Call
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Query

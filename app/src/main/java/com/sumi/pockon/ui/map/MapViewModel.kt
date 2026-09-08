@@ -8,10 +8,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.CameraPosition
-import com.sumi.pockon.data.repository.BrandSearchRepository
 import com.sumi.pockon.data.repository.GiftRepository
 import com.sumi.pockon.data.model.Document
 import com.sumi.pockon.data.model.Gift
+import com.sumi.pockon.domain.usecase.GetCachedBrandsUseCase
 import com.sumi.pockon.util.getDdayInt
 import com.sumi.pockon.util.loadImageFromPath
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,7 +23,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MapViewModel @Inject constructor(
-    private val brandSearchRepository: BrandSearchRepository,
+    private val getCachedBrandsUseCase: GetCachedBrandsUseCase,
     private val giftRepository: GiftRepository
 ) : ViewModel() {
 
@@ -39,7 +39,7 @@ class MapViewModel @Inject constructor(
     val selectedMarkerIndex: State<Int?> = _selectedMarkerIndex
 
     private var giftList = listOf<Gift>()
-    private var brandInfoList = mutableMapOf<String, List<Document>>()
+    private var brandInfoList: Map<String, List<Document>> = emptyMap()
     private var nearestDoc: Document? = null
     private var pageIndex = 0
     private var isInitialCameraMoved = false
@@ -78,11 +78,11 @@ class MapViewModel @Inject constructor(
     }
 
     private fun getAllBrands() {
-        // 로컬 가져오기
-        viewModelScope.launch(Dispatchers.IO) {
-            // keyword, documents
-            brandInfoList = brandSearchRepository.getAllBrands()
-            mappingInfo()
+        viewModelScope.launch {
+            getCachedBrandsUseCase().onSuccess { brands ->
+                brandInfoList = brands
+                mappingInfo()
+            }
         }
     }
 

@@ -7,11 +7,14 @@ import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.data.repository.PreferenceRepository
 import com.sumi.pockon.data.repository.GiftRepository
 import com.sumi.pockon.data.model.Gift
+import com.sumi.pockon.domain.usecase.DeleteGiftsUseCase
 import com.sumi.pockon.util.NetworkMonitor
 import com.sumi.pockon.util.loadImageFromPath
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -20,9 +23,13 @@ import javax.inject.Inject
 @HiltViewModel
 class UsedViewModel @Inject constructor(
     private val giftRepository: GiftRepository,
+    private val deleteGiftsUseCase: DeleteGiftsUseCase,
     private val preferenceRepository: PreferenceRepository,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
+
+    private val _events = MutableSharedFlow<UsedEvent>(extraBufferCapacity = 1)
+    val events: SharedFlow<UsedEvent> = _events
 
     private var uid = preferenceRepository.getUid()
     private var isGuestMode = preferenceRepository.isGuestMode()
@@ -88,32 +95,27 @@ class UsedViewModel @Inject constructor(
     }
 
     // 선택 삭제/전체 삭제
-    fun deleteSelection(onComplete: (Boolean) -> Unit) {
+    fun deleteSelection() {
         if (!isGuestMode && !networkMonitor.isConnected()) {
-            onComplete(false)
+            _events.tryEmit(UsedEvent.DeleteFailed)
+            return
+        }
+
+        val ids = _checkedGiftList.value
+        if (ids.isEmpty()) {
+            _events.tryEmit(UsedEvent.DeleteFailed)
             return
         }
 
         _isShowIndicator.value = true
-        val resultList = ArrayList<Boolean>()
-        _checkedGiftList.value.forEach { giftId ->
-            giftRepository.removeGift(isGuestMode, uid, giftId) { result ->
-                resultList.add(result)
-                if (result) {
-                    // 로컬 삭제
-                    viewModelScope.launch(Dispatchers.IO) {
-                        giftRepository.deleteGift(giftId)
-                    }
-                }
-                // end
-                if (resultList.size == _checkedGiftList.value.size) {
-                    if (resultList.filter { it }.size == _checkedGiftList.value.size) {
-                        onComplete(true)
-                    } else {
-                        onComplete(false)
-                    }
-                    _isShowIndicator.value = false
-                }
+        viewModelScope.launch {
+            try {
+                val result = deleteGiftsUseCase(isGuestMode, uid, ids)
+                _events.emit(
+                    if (result.isSuccess) UsedEvent.Deleted else UsedEvent.DeleteFailed
+                )
+            } finally {
+                _isShowIndicator.value = false
             }
         }
     }
@@ -142,4 +144,9 @@ class UsedViewModel @Inject constructor(
             _checkedGiftList.value = listOf()
         }
     }
+}
+
+sealed interface UsedEvent {
+    data object Deleted : UsedEvent
+    data object DeleteFailed : UsedEvent
 }

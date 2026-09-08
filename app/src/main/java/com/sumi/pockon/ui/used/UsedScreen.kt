@@ -36,11 +36,11 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -68,7 +68,7 @@ import com.sumi.pockon.ui.loading.LoadingScreen
 import com.sumi.pockon.ui.detail.UsedStamp
 import com.sumi.pockon.ui.list.ConfirmDialog
 import com.sumi.pockon.util.formatString
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
@@ -80,8 +80,22 @@ fun UsedScreen(onDetail: (String) -> Unit, onBack: () -> Unit) {
 
     // snackbar
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        usedViewModel.events.collectLatest { event ->
+            when (event) {
+                UsedEvent.Deleted -> {
+                    isEdit = false
+                    usedViewModel.setIsAllSelect(false)
+                    usedViewModel.clearCheckedGiftList()
+                }
+                UsedEvent.DeleteFailed -> snackbarHostState.showSnackbar(
+                    context.getString(R.string.msg_no_delete)
+                )
+            }
+        }
+    }
 
     Scaffold(
         snackbarHost = {
@@ -222,14 +236,7 @@ fun UsedScreen(onDetail: (String) -> Unit, onBack: () -> Unit) {
     if (showRemoveDlg) {
         ConfirmDialog(text = R.string.dlg_msg_delete, onConfirm = {
             showRemoveDlg = false
-            usedViewModel.deleteSelection { result ->
-                scope.launch {
-                    if (!result) snackbarHostState.showSnackbar(message = context.getString(R.string.msg_no_delete))
-                }
-                isEdit = !isEdit
-                usedViewModel.setIsAllSelect(false)
-                usedViewModel.clearCheckedGiftList()
-            }
+            usedViewModel.deleteSelection()
         }, onDismiss = {
             showRemoveDlg = false
 

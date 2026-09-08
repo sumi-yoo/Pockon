@@ -8,4 +8,8 @@ interface BrandRepository {
         latitude: Double,
         brandNames: List<String>
     ): Result<Map<String, List<Document>?>>
+
+    suspend fun getCachedBrands(): Result<Map<String, List<Document>>>
+
+    suspend fun clearCachedBrands(): Result<Unit>
 }
