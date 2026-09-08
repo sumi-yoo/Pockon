@@ -19,6 +19,22 @@ class GiftDataRemoteSource @Inject constructor(
         return document.id
     }
 
+    suspend fun updateGift(gift: Gift) {
+        firestore
+            .collection("gift")
+            .document(gift.id)
+            .set(gift)
+            .await()
+    }
+
+    suspend fun updateGiftFavorite(id: String, isFavorite: Boolean) {
+        firestore
+            .collection("gift")
+            .document(id)
+            .update("favorite", isFavorite)
+            .await()
+    }
+
     fun uploadData(gift: Gift, onComplete: (String?) -> Unit) {
         val document = firestore
             .collection("gift")

@@ -10,11 +10,15 @@ import com.sumi.pockon.data.repository.PreferenceRepository
 import com.sumi.pockon.data.repository.GiftRepository
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.data.repository.AlarmRepository
+import com.sumi.pockon.domain.usecase.UpdateGiftFavoriteUseCase
+import com.sumi.pockon.domain.usecase.UpdateGiftUseCase
 import com.sumi.pockon.util.NetworkMonitor
 import com.sumi.pockon.util.loadImageFromPath
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -23,11 +27,16 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DetailViewModel @Inject constructor(
-    private val giftRepository: GiftRepository,
+    private val legacyGiftRepository: GiftRepository,
+    private val updateGiftUseCase: UpdateGiftUseCase,
+    private val updateGiftFavoriteUseCase: UpdateGiftFavoriteUseCase,
     private val alarmRepository: AlarmRepository,
     private val preferenceRepository: PreferenceRepository,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
+
+    private val _events = MutableSharedFlow<DetailEvent>()
+    val events: SharedFlow<DetailEvent> = _events
 
     private val isGuestMode = preferenceRepository.isGuestMode()
 
@@ -77,7 +86,7 @@ class DetailViewModel @Inject constructor(
 
     fun getGift(id: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            giftRepository.getGift(id).collectLatest { gift ->
+            legacyGiftRepository.getGift(id).collectLatest { gift ->
                 setGift(
                     Gift(
                         id = gift.id,
@@ -157,18 +166,19 @@ class DetailViewModel @Inject constructor(
         }
 
         val isFavorite = !_isFavorite.value
-        giftRepository.updateGiftIsFavorite(isGuestMode, _gift.value.id, isFavorite) { result ->
-            if (!result) return@updateGiftIsFavorite
-            viewModelScope.launch(Dispatchers.IO) {
-                giftRepository.updateGiftIsFavorite(_gift.value.id, isFavorite)
+        viewModelScope.launch {
+            updateGiftFavoriteUseCase(
+                isGuestMode = isGuestMode,
+                id = _gift.value.id,
+                isFavorite = isFavorite
+            ).onSuccess {
                 _isFavorite.value = isFavorite
             }
         }
     }
 
-    fun updateGift(onComplete: (Boolean) -> Unit) {
+    fun updateGift() {
         if (!isGuestMode && !networkMonitor.isConnected()) {
-            onComplete(false)
             _isShowNoInternetDialog.value = true
             return
         }
@@ -203,27 +213,33 @@ class DetailViewModel @Inject constructor(
                 isFavorite = _isFavorite.value
             )
         }
-        giftRepository.updateGift(isGuestMode, updateGift, true) { result ->
-            // 수정 성공
-            if (result) {
-                // 로컬 수정
-                viewModelScope.launch(Dispatchers.IO) {
-                    giftRepository.insertGift(updateGift)
+        viewModelScope.launch {
+            try {
+                val result = updateGiftUseCase(
+                    isGuestMode = isGuestMode,
+                    gift = updateGift,
+                    shouldUploadPhoto = true
+                )
+
+                if (result.isSuccess) {
+                    alarmRepository.cancelAlarm(
+                        updateGift.id,
+                        preferenceRepository.getNotiEndDtDay()
+                    )
+                    _gift.value = updateGift
+                    _isEdit.value = false
+                    _events.emit(DetailEvent.GiftUpdated)
+                } else {
+                    _events.emit(DetailEvent.GiftUpdateFailed)
                 }
-                alarmRepository.cancelAlarm(updateGift.id, preferenceRepository.getNotiEndDtDay())
-                _gift.value = updateGift
-                _isEdit.value = false
-                onComplete(true)
-            } else { // 수정 실패
-                onComplete(false)
+            } finally {
+                _isShowIndicator.value = false
             }
-            _isShowIndicator.value = false
         }
     }
 
-    fun setIsUsed(flag: Boolean, cash: Int? = null, onComplete: (Boolean) -> Unit) {
+    fun setIsUsed(flag: Boolean, cash: Int? = null) {
         if (!isGuestMode && !networkMonitor.isConnected()) {
-            onComplete(false)
             _isShowNoInternetDialog.value = true
             return
         }
@@ -240,18 +256,24 @@ class DetailViewModel @Inject constructor(
             usedDt = nowDt,
             cash = cash.toString()
         )
-        giftRepository.updateGift(isGuestMode, gift, false) { result ->
-            if (result) {
-                // 로컬 수정
-                viewModelScope.launch(Dispatchers.IO) {
-                    giftRepository.insertGift(gift)
+        viewModelScope.launch {
+            try {
+                val result = updateGiftUseCase(
+                    isGuestMode = isGuestMode,
+                    gift = gift,
+                    shouldUploadPhoto = false
+                )
+
+                if (result.isSuccess) {
+                    _gift.value = gift
+                    _isShowBottomSheet.value = false
+                    _isShowUseCashDialog.value = false
+                } else {
+                    _events.emit(DetailEvent.GiftUsageUpdateFailed(flag))
                 }
-                _isShowBottomSheet.value = false
-                _isShowUseCashDialog.value = false
-            } else { // 수정 실패
-                onComplete(false)
+            } finally {
+                _isShowIndicator.value = false
             }
-            _isShowIndicator.value = false
         }
     }
 
@@ -295,4 +317,10 @@ class DetailViewModel @Inject constructor(
         _isCheckedCash.value = _gift.value.cash.isNotEmpty()
         _isFavorite.value = _gift.value.isFavorite
     }
+}
+
+sealed interface DetailEvent {
+    data object GiftUpdated : DetailEvent
+    data object GiftUpdateFailed : DetailEvent
+    data class GiftUsageUpdateFailed(val isUsing: Boolean) : DetailEvent
 }

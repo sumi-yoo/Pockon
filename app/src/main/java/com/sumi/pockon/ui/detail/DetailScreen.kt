@@ -111,11 +111,29 @@ import com.sumi.pockon.util.decimalFormat
 import com.sumi.pockon.util.getBitmapFromUri
 import com.sumi.pockon.util.thousandSeparatorTransformation
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun DetailScreen(id: String, isEditMode: Boolean = true, onBack: () -> Unit) {
     val detailViewModel = hiltViewModel<DetailViewModel>()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        detailViewModel.events.collectLatest { event ->
+            val message = when (event) {
+                DetailEvent.GiftUpdated -> R.string.msg_ok_update
+                DetailEvent.GiftUpdateFailed -> R.string.msg_no_update
+                is DetailEvent.GiftUsageUpdateFailed -> {
+                    if (event.isUsing) R.string.msg_no_use else R.string.msg_no_use_cancel
+                }
+            }
+            snackbarHostState.showSnackbar(context.getString(message))
+        }
+    }
 
     // 중복호출 방지
     LaunchedEffect(id) {
@@ -133,11 +151,6 @@ fun DetailScreen(id: String, isEditMode: Boolean = true, onBack: () -> Unit) {
         detailViewModel.endDate.value,
         detailViewModel.memo.value
     )
-
-    // snackbar
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
 
     // select photo
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -333,20 +346,7 @@ fun DetailScreen(id: String, isEditMode: Boolean = true, onBack: () -> Unit) {
                                 snackbarHostState.showSnackbar(message = context.getString(msg))
                             }
                         } else {
-                            detailViewModel.updateGift { result ->
-                                scope.launch {
-                                    if (result) snackbarHostState.showSnackbar(
-                                        message = context.getString(
-                                            R.string.msg_ok_update
-                                        )
-                                    )
-                                    else snackbarHostState.showSnackbar(
-                                        message = context.getString(
-                                            R.string.msg_no_update
-                                        )
-                                    )
-                                }
-                            }
+                            detailViewModel.updateGift()
 
                         }
                     } else if (detailViewModel.usedDt.value.isEmpty()) {
@@ -397,15 +397,7 @@ fun DetailScreen(id: String, isEditMode: Boolean = true, onBack: () -> Unit) {
                         detailViewModel.setIsShowUseCashDialog(true)
                         detailViewModel.setIsShowBottomSheet(false)
                     } else {
-                        detailViewModel.setIsUsed(true) { result ->
-                            scope.launch {
-                                if (!result) snackbarHostState.showSnackbar(
-                                    message = context.getString(
-                                        R.string.msg_no_use
-                                    )
-                                )
-                            }
-                        }
+                        detailViewModel.setIsUsed(true)
                     }
                 } else {
                     detailViewModel.setIsShowBottomSheet(false)
@@ -416,15 +408,7 @@ fun DetailScreen(id: String, isEditMode: Boolean = true, onBack: () -> Unit) {
             ConfirmDialog(
                 text = R.string.dlg_msg_use_cancel,
                 onConfirm = {
-                    detailViewModel.setIsUsed(false) { result ->
-                        scope.launch {
-                            if (!result) snackbarHostState.showSnackbar(
-                                message = context.getString(
-                                    R.string.msg_no_use_cancel
-                                )
-                            )
-                        }
-                    }
+                    detailViewModel.setIsUsed(false)
                     detailViewModel.setIsShowCancelDialog(false)
                 },
                 onDismiss = {
@@ -449,15 +433,7 @@ fun DetailScreen(id: String, isEditMode: Boolean = true, onBack: () -> Unit) {
                             detailViewModel.setIsShowUseCashDialog(false)
                         },
                         onConfirm = { useCash ->
-                            detailViewModel.setIsUsed(true, useCash) { result ->
-                                scope.launch {
-                                    if (!result) snackbarHostState.showSnackbar(
-                                        message = context.getString(
-                                            R.string.msg_no_use
-                                        )
-                                    )
-                                }
-                            }
+                            detailViewModel.setIsUsed(true, useCash)
                         }
                     )
                 }

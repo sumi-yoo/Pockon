@@ -45,6 +45,49 @@ class GiftRepositoryImpl @Inject constructor(
             }
         }
 
+    override suspend fun updateGift(
+        isGuestMode: Boolean,
+        gift: Gift,
+        shouldUploadPhoto: Boolean
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            if (!isGuestMode) {
+                giftDataRemoteSource.updateGift(gift.copy(photo = null))
+
+                if (shouldUploadPhoto) {
+                    val photo = requireNotNull(gift.photo) { "Gift photo is required." }
+                    giftPhotoRemoteDataSource.uploadPhoto(photo, gift.uid, gift.id)
+                }
+            }
+
+            giftLocalDataSource.insertGift(gift.toEntity(gift.id, context))
+            Result.success(Unit)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Result.failure(exception)
+        }
+    }
+
+    override suspend fun updateGiftFavorite(
+        isGuestMode: Boolean,
+        id: String,
+        isFavorite: Boolean
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            if (!isGuestMode) {
+                giftDataRemoteSource.updateGiftFavorite(id, isFavorite)
+            }
+
+            giftLocalDataSource.updateGiftIsFavorite(id, isFavorite)
+            Result.success(Unit)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Result.failure(exception)
+        }
+    }
+
     private fun Gift.toEntity(id: String, context: Context) = GiftEntity(
         id = id,
         uid = uid,

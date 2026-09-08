@@ -32,7 +32,7 @@ class AddViewModel @Inject constructor(
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
-    private val _events = MutableSharedFlow<AddGiftEvent>(extraBufferCapacity = 1)
+    private val _events = MutableSharedFlow<AddGiftEvent>()
     val events: SharedFlow<AddGiftEvent> = _events
 
     private val uid = preferenceRepository.getUid()
