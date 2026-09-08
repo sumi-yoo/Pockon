@@ -9,13 +9,14 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
 import com.sumi.pockon.R
 import com.sumi.pockon.data.repository.PreferenceRepository
-import com.sumi.pockon.data.repository.GiftRepository
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.data.repository.AlarmRepository
+import com.sumi.pockon.domain.usecase.AddGiftUseCase
 import com.sumi.pockon.util.GifticonParser
 import com.sumi.pockon.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import java.io.IOException
 import java.text.SimpleDateFormat
@@ -25,11 +26,14 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AddViewModel @Inject constructor(
-    private val giftRepository: GiftRepository,
+    private val addGiftUseCase: AddGiftUseCase,
     private val preferenceRepository: PreferenceRepository,
     private val alarmRepository: AlarmRepository,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
+
+    private val _events = MutableSharedFlow<AddGiftEvent>(extraBufferCapacity = 1)
+    val events: SharedFlow<AddGiftEvent> = _events
 
     private val uid = preferenceRepository.getUid()
     private val isNotiEndDt = preferenceRepository.isNotiEndDt()
@@ -70,9 +74,8 @@ class AddViewModel @Inject constructor(
         }
     }
 
-    fun addGift(onAddComplete: (Boolean) -> Unit) {
+    fun addGift() {
         if (!isGuestMode && !networkMonitor.isConnected()) {
-            onAddComplete(false)
             _isShowNoInternetDialog.value = true
             return
         }
@@ -108,16 +111,11 @@ class AddViewModel @Inject constructor(
             )
         }
         viewModelScope.launch {
-            giftRepository.addGift(isGuestMode, gift) { id ->
-                if (id != null) {
-                    // 로컬 수정
-                    viewModelScope.launch(Dispatchers.IO) {
-                        giftRepository.insertGift(gift.copy(id = id))
-                    }
-                }
-                _isShowIndicator.value = false
-                onAddComplete(id != null)
-            }
+            val result = addGiftUseCase(isGuestMode, gift)
+            _isShowIndicator.value = false
+            _events.emit(
+                if (result.isSuccess) AddGiftEvent.Saved else AddGiftEvent.SaveFailed
+            )
         }
     }
 
@@ -183,4 +181,9 @@ class AddViewModel @Inject constructor(
             } catch (_: IOException) { }
         }
     }
+}
+
+sealed interface AddGiftEvent {
+    data object Saved : AddGiftEvent
+    data object SaveFailed : AddGiftEvent
 }

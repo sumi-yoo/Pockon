@@ -6,11 +6,18 @@ import com.sumi.pockon.util.toByteArray
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.storage.StorageReference
 import com.sumi.pockon.util.CryptoManager
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class GiftPhotoRemoteDataSource @Inject constructor(
     private val storageRef: StorageReference
 ) {
+
+    suspend fun uploadPhoto(data: Bitmap, uid: String, id: String) {
+        storageRef.child("$uid/$id.enc")
+            .putBytes(data.toByteArray(uid))
+            .await()
+    }
 
     fun uploadData(data: Bitmap, uid: String, id: String, onComplete: (Boolean) -> Unit) {
         storageRef.child("${uid}/${id}.enc")

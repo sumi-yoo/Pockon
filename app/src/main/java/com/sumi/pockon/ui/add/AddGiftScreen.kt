@@ -49,6 +49,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -75,6 +76,7 @@ import com.sumi.pockon.util.formatDateToYYYYMMDD
 import com.sumi.pockon.util.getBitmapFromUri
 import com.sumi.pockon.util.thousandSeparatorTransformation
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -89,6 +91,17 @@ fun AddGifticon(onBack: (Boolean) -> Unit) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        addViewModel.events.collectLatest { event ->
+            when (event) {
+                AddGiftEvent.Saved -> onBack(true)
+                AddGiftEvent.SaveFailed -> snackbarHostState.showSnackbar(
+                    message = context.getString(R.string.msg_no_register)
+                )
+            }
+        }
+    }
 
     // select photo
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -195,15 +208,7 @@ fun AddGifticon(onBack: (Boolean) -> Unit) {
                             snackbarHostState.showSnackbar(message = context.getString(msg))
                         }
                     } else {
-                        addViewModel.addGift { result ->
-                            if (result) {
-                                onBack(true)
-                            } else {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(message = context.getString(R.string.msg_no_register))
-                                }
-                            }
-                        }
+                        addViewModel.addGift()
                     }
                 },
                 shape = RectangleShape,

@@ -3,11 +3,21 @@ package com.sumi.pockon.data.remote.gift
 import com.sumi.pockon.data.model.Gift
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class GiftDataRemoteSource @Inject constructor(
     private val firestore: FirebaseFirestore
 ) {
+
+    suspend fun createGift(gift: Gift): String {
+        val document = firestore
+            .collection("gift")
+            .document()
+
+        document.set(gift.copy(id = document.id)).await()
+        return document.id
+    }
 
     fun uploadData(gift: Gift, onComplete: (String?) -> Unit) {
         val document = firestore
