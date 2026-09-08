@@ -5,10 +5,12 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sumi.pockon.data.repository.PreferenceRepository
 import com.sumi.pockon.domain.usecase.GetGoogleCredentialUseCase
 import com.sumi.pockon.domain.usecase.GetSignInIntentUseCase
 import com.sumi.pockon.domain.usecase.SignInUseCase
+import com.sumi.pockon.domain.usecase.IsPinEnabledUseCase
+import com.sumi.pockon.domain.usecase.SaveUserSessionUseCase
+import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,7 +23,9 @@ class LoginViewModel @Inject constructor(
     private val getGoogleCredentialUseCase: GetGoogleCredentialUseCase,
     private val getSignInIntentUseCase: GetSignInIntentUseCase,
     private val signInUseCase: SignInUseCase,
-    private val preferenceRepository: PreferenceRepository
+    private val isPinEnabledUseCase: IsPinEnabledUseCase,
+    private val saveUserSessionUseCase: SaveUserSessionUseCase,
+    private val getUserSessionUseCase: GetUserSessionUseCase
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<LoginEvent>()
@@ -36,13 +40,14 @@ class LoginViewModel @Inject constructor(
     private val _isLoading = MutableLiveData(false)
     val isLoading: LiveData<Boolean> = _isLoading
 
-    private val _isFirstLogin = MutableLiveData(preferenceRepository.getUid().isEmpty())
+    private val session = getUserSessionUseCase()
+    private val _isFirstLogin = MutableLiveData(session.uid.isEmpty())
     val isFirstLogin: LiveData<Boolean> = _isFirstLogin
 
-    private var isPinUse = preferenceRepository.isAuthPin()
+    private var isPinUse = isPinEnabledUseCase()
 
     init {
-        if (preferenceRepository.getUid().isNotEmpty()) {
+        if (session.uid.isNotEmpty()) {
             _isLogin.postValue(true)
         }
     }
@@ -53,7 +58,7 @@ class LoginViewModel @Inject constructor(
 
     fun requestSignInIntent() {
         viewModelScope.launch {
-            getSignInIntentUseCase(preferenceRepository.getEmail()).onSuccess { intent ->
+            getSignInIntentUseCase(session.email).onSuccess { intent ->
                 _events.emit(LoginEvent.LaunchSignIn(intent))
             }.onFailure {
                 _isFail.value = true
@@ -64,8 +69,7 @@ class LoginViewModel @Inject constructor(
     fun loginAsGuest() {
         isPinUse = true
         _isLogin.postValue(true)
-        preferenceRepository.saveUid(UUID.randomUUID().toString())
-        preferenceRepository.saveIsGuestMode(true)
+        saveUserSessionUseCase(uid = UUID.randomUUID().toString(), isGuest = true)
     }
 
     fun loginForApiLower(idToken: String?, email: String?, name: String?, profileImg: Uri?) {
@@ -80,10 +84,7 @@ class LoginViewModel @Inject constructor(
             signInUseCase(idToken).onSuccess { uid ->
                 isPinUse = true
                 _isLogin.value = true
-                preferenceRepository.saveUid(uid)
-                preferenceRepository.saveEmail(email)
-                name?.let(preferenceRepository::saveName)
-                profileImg?.let { preferenceRepository.saveProfileImage(it.toString()) }
+                saveUserSessionUseCase(uid, email, name, profileImg?.toString())
             }.onFailure {
                 _isLogin.postValue(false)
                 _isFail.postValue(true)
@@ -102,10 +103,12 @@ class LoginViewModel @Inject constructor(
                 signInUseCase(credential.idToken).onSuccess { uid ->
                     isPinUse = true
                     _isLogin.postValue(true)
-                    preferenceRepository.saveUid(uid)
-                    preferenceRepository.saveEmail(credential.id)
-                    credential.displayName?.let { name -> preferenceRepository.saveName(name) }
-                    credential.profilePictureUri?.let { uri -> preferenceRepository.saveProfileImage(uri.toString()) }
+                    saveUserSessionUseCase(
+                        uid,
+                        credential.id,
+                        credential.displayName,
+                        credential.profilePictureUri?.toString()
+                    )
                 }.onFailure {
                     _isLogin.postValue(false)
                     _isFail.postValue(true)

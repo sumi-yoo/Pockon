@@ -14,6 +14,10 @@ import com.sumi.pockon.domain.usecase.ObserveAllGiftsUseCase
 import com.sumi.pockon.domain.usecase.ClearAllGiftsUseCase
 import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
 import com.sumi.pockon.domain.usecase.ScheduleGiftAlarmUseCase
+import com.sumi.pockon.domain.usecase.DisablePinUseCase
+import com.sumi.pockon.domain.usecase.IsPinEnabledUseCase
+import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
+import com.sumi.pockon.domain.usecase.ClearUserSessionUseCase
 import com.sumi.pockon.domain.usecase.ClearBrandCacheUseCase
 import com.sumi.pockon.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,19 +43,24 @@ class SettingsViewModel @Inject constructor(
     private val preferenceRepository: PreferenceRepository,
     private val cancelGiftAlarmUseCase: CancelGiftAlarmUseCase,
     private val scheduleGiftAlarmUseCase: ScheduleGiftAlarmUseCase,
+    private val disablePinUseCase: DisablePinUseCase,
+    private val isPinEnabledUseCase: IsPinEnabledUseCase,
+    private val getUserSessionUseCase: GetUserSessionUseCase,
+    private val clearUserSessionUseCase: ClearUserSessionUseCase,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<SettingsEvent>()
     val events: SharedFlow<SettingsEvent> = _events
 
-    private var uid = preferenceRepository.getUid()
-    private var isAuthPin = preferenceRepository.isAuthPin()
+    private val session = getUserSessionUseCase()
+    private var uid = session.uid
+    private var isAuthPin = isPinEnabledUseCase()
     private var isNotiEndDt = preferenceRepository.isNotiEndDt()
-    private var isGuestMode = preferenceRepository.isGuestMode()
+    private var isGuestMode = session.isGuest
     private var profileImage = preferenceRepository.getProfileImage()
     private var name = preferenceRepository.getName()
-    private var email = preferenceRepository.getEmail()
+    private var email = session.email
 
     private val _isShowNoInternetDialog = mutableStateOf(false)
     val isShowNoInternetDialog: State<Boolean> = _isShowNoInternetDialog
@@ -78,13 +87,13 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun offAuthPin() {
-        preferenceRepository.offAuthPin()
+        disablePinUseCase()
         isAuthPin = false
     }
 
     fun logout() {
         if (!isGuestMode) signOutUseCase()
-        preferenceRepository.removeAll()
+        clearUserSessionUseCase()
         viewModelScope.launch(Dispatchers.IO) {
             observeAllGiftsUseCase().take(1).collectLatest { gifts ->
                 gifts.forEach { gift ->
@@ -98,7 +107,7 @@ class SettingsViewModel @Inject constructor(
 
     fun requestLegacySignIn() {
         viewModelScope.launch {
-            getSignInIntentUseCase(preferenceRepository.getEmail()).onSuccess { intent ->
+            getSignInIntentUseCase(email).onSuccess { intent ->
                 _events.emit(SettingsEvent.LaunchSignIn(intent))
             }.onFailure {
                 _events.emit(SettingsEvent.AccountDeletionFailed)
@@ -109,7 +118,7 @@ class SettingsViewModel @Inject constructor(
     fun removeAccountWithCredential() {
         viewModelScope.launch {
             getGoogleCredentialUseCase().onSuccess { credential ->
-                removeAccount(preferenceRepository.getEmail(), credential)
+                removeAccount(email, credential)
             }.onFailure {
                 _events.emit(SettingsEvent.AccountDeletionFailed)
             }
@@ -142,7 +151,7 @@ class SettingsViewModel @Inject constructor(
             clearAllGiftsUseCase()
             clearBrandCacheUseCase()
             if (!isGuestMode) signOutUseCase()
-            preferenceRepository.removeAll()
+            clearUserSessionUseCase()
             _events.emit(SettingsEvent.AccountDeleted)
         }
     }

@@ -3,11 +3,15 @@ package com.sumi.pockon.di
 import com.sumi.pockon.data.repository.GiftRepositoryImpl
 import com.sumi.pockon.data.repository.AlarmRepositoryImpl
 import com.sumi.pockon.data.repository.LoginRepository
+import com.sumi.pockon.data.repository.PinRepositoryImpl
+import com.sumi.pockon.data.repository.UserSessionRepositoryImpl
 import com.sumi.pockon.data.repository.BrandRepositoryImpl
 import com.sumi.pockon.domain.repository.BrandRepository
 import com.sumi.pockon.domain.repository.GiftRepository
 import com.sumi.pockon.domain.repository.AuthRepository
 import com.sumi.pockon.domain.repository.AlarmRepository
+import com.sumi.pockon.domain.repository.PinRepository
+import com.sumi.pockon.domain.repository.UserSessionRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -16,6 +20,14 @@ import dagger.hilt.components.SingletonComponent
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
+
+    @Binds
+    abstract fun bindUserSessionRepository(
+        userSessionRepositoryImpl: UserSessionRepositoryImpl
+    ): UserSessionRepository
+
+    @Binds
+    abstract fun bindPinRepository(pinRepositoryImpl: PinRepositoryImpl): PinRepository
 
     @Binds
     abstract fun bindAlarmRepository(alarmRepositoryImpl: AlarmRepositoryImpl): AlarmRepository
