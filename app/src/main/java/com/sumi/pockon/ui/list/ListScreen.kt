@@ -89,6 +89,7 @@ import com.sumi.pockon.util.getDday
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -113,6 +114,28 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        listViewModel.events.collectLatest { event ->
+            when (event) {
+                ListEvent.GiftUseFailed -> snackbarHostState.showSnackbar(
+                    context.getString(R.string.msg_no_use)
+                )
+                is ListEvent.GiftDeleted -> {
+                    isLoading(false)
+                    if (event.isBulk) {
+                        isEdit = false
+                        listViewModel.setIsAllSelect(false)
+                        listViewModel.clearCheckedGiftList()
+                    }
+                }
+                ListEvent.GiftDeleteFailed -> {
+                    isLoading(false)
+                    snackbarHostState.showSnackbar(context.getString(R.string.msg_no_delete))
+                }
+            }
+        }
+    }
 
     var isRefreshing by remember { mutableStateOf(false) }
     val swipeRefreshState = rememberSwipeRefreshState(isRefreshing)
@@ -148,30 +171,9 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
                 showRemoveDlg = false
                 isLoading(true)
                 if (isEdit) {
-                    listViewModel.deleteSelection { result ->
-                        isLoading(false)
-                        scope.launch {
-                            if (!result) snackbarHostState.showSnackbar(
-                                message = context.getString(
-                                    R.string.msg_no_delete
-                                )
-                            )
-                        }
-                        isEdit = !isEdit
-                        listViewModel.setIsAllSelect(false)
-                        listViewModel.clearCheckedGiftList()
-                    }
+                    listViewModel.deleteSelection()
                 } else {
-                    listViewModel.removeGift { result ->
-                        isLoading(false)
-                        scope.launch {
-                            if (!result) snackbarHostState.showSnackbar(
-                                message = context.getString(
-                                    R.string.msg_no_delete
-                                )
-                            )
-                        }
-                    }
+                    listViewModel.removeGift()
                 }
             },
             onDismiss = {
@@ -356,15 +358,7 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
                                         SwipeToDismissItem(
                                             onDismiss = { offsetX ->
                                                 if (offsetX < 0) { // 사용완료
-                                                    listViewModel.usedGift(gift) { result ->
-                                                        scope.launch {
-                                                            if (!result) snackbarHostState.showSnackbar(
-                                                                message = context.getString(
-                                                                    R.string.msg_no_use
-                                                                )
-                                                            )
-                                                        }
-                                                    }
+                                                    listViewModel.usedGift(gift)
                                                 } else { // 삭제
                                                     listViewModel.setRemoveGift(gift)
                                                     showRemoveDlg = true

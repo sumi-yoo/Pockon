@@ -108,6 +108,46 @@ class GiftRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun deleteGift(
+        isGuestMode: Boolean,
+        uid: String,
+        id: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            if (!isGuestMode) {
+                giftPhotoRemoteDataSource.deletePhoto(uid, id)
+                giftDataRemoteSource.deleteGift(id)
+            }
+
+            giftLocalDataSource.deleteGift(id)
+            Result.success(Unit)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Result.failure(exception)
+        }
+    }
+
+    override suspend fun deleteGifts(
+        isGuestMode: Boolean,
+        uid: String,
+        ids: List<String>
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            if (!isGuestMode) {
+                giftPhotoRemoteDataSource.deletePhotos(uid, ids)
+                giftDataRemoteSource.deleteGifts(ids)
+            }
+
+            giftLocalDataSource.deleteGifts(ids)
+            Result.success(Unit)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Result.failure(exception)
+        }
+    }
+
     private fun Gift.toEntity(id: String, context: Context) = GiftEntity(
         id = id,
         uid = uid,

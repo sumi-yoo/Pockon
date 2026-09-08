@@ -18,4 +18,8 @@ interface GiftRepository {
         id: String,
         isFavorite: Boolean
     ): Result<Unit>
+
+    suspend fun deleteGift(isGuestMode: Boolean, uid: String, id: String): Result<Unit>
+
+    suspend fun deleteGifts(isGuestMode: Boolean, uid: String, ids: List<String>): Result<Unit>
 }

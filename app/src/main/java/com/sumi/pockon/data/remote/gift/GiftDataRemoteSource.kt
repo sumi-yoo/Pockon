@@ -3,6 +3,9 @@ package com.sumi.pockon.data.remote.gift
 import com.sumi.pockon.data.model.Gift
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
@@ -42,6 +45,14 @@ class GiftDataRemoteSource @Inject constructor(
         .await()
         .documents
         .mapNotNull { document -> document.toObject(Gift::class.java) }
+
+    suspend fun deleteGift(id: String) {
+        firestore.collection("gift").document(id).delete().await()
+    }
+
+    suspend fun deleteGifts(ids: List<String>) = coroutineScope {
+        ids.map { id -> async { deleteGift(id) } }.awaitAll()
+    }
 
     fun uploadData(gift: Gift, onComplete: (String?) -> Unit) {
         val document = firestore

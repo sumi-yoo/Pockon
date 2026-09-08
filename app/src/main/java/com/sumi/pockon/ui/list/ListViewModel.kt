@@ -10,12 +10,17 @@ import com.sumi.pockon.data.repository.PreferenceRepository
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.data.repository.AlarmRepository
 import com.sumi.pockon.data.repository.GiftRepository
+import com.sumi.pockon.domain.usecase.DeleteGiftUseCase
+import com.sumi.pockon.domain.usecase.DeleteGiftsUseCase
 import com.sumi.pockon.domain.usecase.SyncGiftListUseCase
+import com.sumi.pockon.domain.usecase.UpdateGiftUseCase
 import com.sumi.pockon.util.NetworkMonitor
 import com.sumi.pockon.util.loadImageFromPath
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -27,10 +32,16 @@ import kotlin.collections.ArrayList
 class ListViewModel @Inject constructor(
     private val giftRepository: GiftRepository,
     private val syncGiftListUseCase: SyncGiftListUseCase,
+    private val updateGiftUseCase: UpdateGiftUseCase,
+    private val deleteGiftUseCase: DeleteGiftUseCase,
+    private val deleteGiftsUseCase: DeleteGiftsUseCase,
     private val preferenceRepository: PreferenceRepository,
     private val alarmRepository: AlarmRepository,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
+
+    private val _events = MutableSharedFlow<ListEvent>(extraBufferCapacity = 1)
+    val events: SharedFlow<ListEvent> = _events
 
     private var uid = preferenceRepository.getUid()
     private var isGuestMode = preferenceRepository.isGuestMode()
@@ -231,10 +242,10 @@ class ListViewModel @Inject constructor(
     }
 
     // 기프티콘 수정
-    fun usedGift(gift: Gift, onComplete: (Boolean) -> Unit) {
+    fun usedGift(gift: Gift) {
         if (!isGuestMode && !networkMonitor.isConnected()) {
-            onComplete(false)
             _isShowNoInternetDialog.value = true
+            _events.tryEmit(ListEvent.GiftUseFailed)
             return
         }
 
@@ -243,45 +254,43 @@ class ListViewModel @Inject constructor(
             Locale.getDefault()
         ).format(Date(System.currentTimeMillis()))
         val updateGift = gift.copy(usedDt = nowDt)
-        giftRepository.updateGift(isGuestMode, updateGift, false) { result ->
-            // 수정 성공
-            if (result) {
-                // 로컬 수정
-                viewModelScope.launch(Dispatchers.IO) {
-                    giftRepository.insertGift(updateGift)
-                }
+        viewModelScope.launch {
+            val result = updateGiftUseCase(
+                isGuestMode = isGuestMode,
+                gift = updateGift,
+                shouldUploadPhoto = false
+            )
+            if (result.isSuccess) {
                 alarmRepository.cancelAlarm(gift.id, preferenceRepository.getNotiEndDtDay())
-                onComplete(true)
-            } else { // 수정 실패
-                onComplete(false)
+            } else {
+                _events.emit(ListEvent.GiftUseFailed)
             }
         }
     }
 
     // 기프티콘 삭제
-    fun removeGift(onComplete: (Boolean) -> Unit) {
+    fun removeGift() {
         if (!isGuestMode && !networkMonitor.isConnected()) {
-            onComplete(false)
             _isShowNoInternetDialog.value = true
+            _events.tryEmit(ListEvent.GiftDeleteFailed)
             return
         }
 
-        if (removeGift == null) return
-        if (removeGift?.id?.isEmpty() == true) return
+        if (removeGift == null || removeGift?.id?.isEmpty() == true) {
+            _events.tryEmit(ListEvent.GiftDeleteFailed)
+            return
+        }
         val uid = removeGift!!.uid
         val id = removeGift!!.id
         val gift = removeGift!!.copy()
         removeGift = null
-        giftRepository.removeGift(isGuestMode, uid, id) { result ->
-            if (result) {
-                // 로컬 삭제
-                viewModelScope.launch(Dispatchers.IO) {
-                    giftRepository.deleteGift(id)
-                }
+        viewModelScope.launch {
+            val result = deleteGiftUseCase(isGuestMode, uid, id)
+            if (result.isSuccess) {
                 alarmRepository.cancelAlarm(gift.id, preferenceRepository.getNotiEndDtDay())
-                onComplete(true)
-            } else { // 삭제 실패
-                onComplete(false)
+                _events.emit(ListEvent.GiftDeleted(isBulk = false))
+            } else {
+                _events.emit(ListEvent.GiftDeleteFailed)
             }
         }
     }
@@ -317,34 +326,28 @@ class ListViewModel @Inject constructor(
     }
 
     // 선택 삭제/전체 삭제
-    fun deleteSelection(onComplete: (Boolean) -> Unit) {
+    fun deleteSelection() {
         if (!isGuestMode && !networkMonitor.isConnected()) {
-            onComplete(false)
             _isShowNoInternetDialog.value = true
+            _events.tryEmit(ListEvent.GiftDeleteFailed)
             return
         }
 
-        val resultList = ArrayList<Boolean>()
-        _checkedGiftList.value.forEach { giftId ->
-            giftRepository.removeGift(isGuestMode, uid, giftId) { result ->
-                resultList.add(result)
-                // end
-                if (resultList.size == _checkedGiftList.value.size) {
-                    if (resultList.filter { it }.size != _checkedGiftList.value.size) {
-                        onComplete(false)
-                    } else {
-                        val idList = ArrayList<String>()
-                        _checkedGiftList.value.forEach { id ->
-                            idList.add(id)
-                            alarmRepository.cancelAlarm(id, preferenceRepository.getNotiEndDtDay())
-                        }
-                        // 로컬 삭제
-                        viewModelScope.launch(Dispatchers.IO) {
-                            giftRepository.deleteGifts(idList)
-                        }
-                        onComplete(true)
-                    }
+        val ids = _checkedGiftList.value
+        if (ids.isEmpty()) {
+            _events.tryEmit(ListEvent.GiftDeleteFailed)
+            return
+        }
+
+        viewModelScope.launch {
+            val result = deleteGiftsUseCase(isGuestMode, uid, ids)
+            if (result.isSuccess) {
+                ids.forEach { id ->
+                    alarmRepository.cancelAlarm(id, preferenceRepository.getNotiEndDtDay())
                 }
+                _events.emit(ListEvent.GiftDeleted(isBulk = true))
+            } else {
+                _events.emit(ListEvent.GiftDeleteFailed)
             }
         }
     }
@@ -358,4 +361,10 @@ class ListViewModel @Inject constructor(
     }
 
     fun getFilterList() = this.filterList
+}
+
+sealed interface ListEvent {
+    data object GiftUseFailed : ListEvent
+    data class GiftDeleted(val isBulk: Boolean) : ListEvent
+    data object GiftDeleteFailed : ListEvent
 }

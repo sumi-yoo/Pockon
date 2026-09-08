@@ -45,6 +45,14 @@ class GiftPhotoRemoteDataSource @Inject constructor(
         }.awaitAll().toMap()
     }
 
+    suspend fun deletePhoto(uid: String, id: String) {
+        storageRef.child("$uid/$id.enc").delete().await()
+    }
+
+    suspend fun deletePhotos(uid: String, ids: List<String>) = coroutineScope {
+        ids.map { id -> async { deletePhoto(uid, id) } }.awaitAll()
+    }
+
     fun uploadData(data: Bitmap, uid: String, id: String, onComplete: (Boolean) -> Unit) {
         storageRef.child("${uid}/${id}.enc")
             .putBytes(data.toByteArray(uid))
