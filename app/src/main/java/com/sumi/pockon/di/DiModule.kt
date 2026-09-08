@@ -24,7 +24,6 @@ import com.google.firebase.storage.StorageReference
 import com.sumi.pockon.data.local.alarm.AlarmDataSource
 import com.sumi.pockon.data.local.preference.PreferenceLocalDataSource
 import com.sumi.pockon.data.repository.PreferenceRepository
-import com.sumi.pockon.data.repository.AlarmRepository
 import com.sumi.pockon.util.NetworkMonitor
 import dagger.Module
 import dagger.Provides
@@ -123,10 +122,6 @@ class DiModule {
     @Singleton
     @Provides
     fun provideGiftDao(giftDatabase: GiftDatabase): GiftDao = giftDatabase.giftDao()
-
-    @Singleton
-    @Provides
-    fun provideAlarmRepository(alarmDataSource: AlarmDataSource): AlarmRepository = AlarmRepository(alarmDataSource)
 
     @Singleton
     @Provides

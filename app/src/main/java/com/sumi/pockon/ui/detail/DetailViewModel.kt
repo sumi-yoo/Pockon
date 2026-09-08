@@ -8,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.R
 import com.sumi.pockon.data.repository.PreferenceRepository
 import com.sumi.pockon.data.model.Gift
-import com.sumi.pockon.data.repository.AlarmRepository
+import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
 import com.sumi.pockon.domain.usecase.UpdateGiftFavoriteUseCase
 import com.sumi.pockon.domain.usecase.UpdateGiftUseCase
 import com.sumi.pockon.domain.usecase.ObserveGiftUseCase
@@ -29,7 +29,7 @@ class DetailViewModel @Inject constructor(
     private val observeGiftUseCase: ObserveGiftUseCase,
     private val updateGiftUseCase: UpdateGiftUseCase,
     private val updateGiftFavoriteUseCase: UpdateGiftFavoriteUseCase,
-    private val alarmRepository: AlarmRepository,
+    private val cancelGiftAlarmUseCase: CancelGiftAlarmUseCase,
     private val preferenceRepository: PreferenceRepository,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
@@ -207,7 +207,7 @@ class DetailViewModel @Inject constructor(
                 )
 
                 if (result.isSuccess) {
-                    alarmRepository.cancelAlarm(
+                    cancelGiftAlarmUseCase(
                         updateGift.id,
                         preferenceRepository.getNotiEndDtDay()
                     )

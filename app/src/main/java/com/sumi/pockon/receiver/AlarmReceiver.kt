@@ -11,7 +11,8 @@ import com.sumi.pockon.MainApplication.Companion.CHANNEL_ID
 import com.sumi.pockon.MainApplication.Companion.GROUP_KEY
 import com.sumi.pockon.R
 import com.sumi.pockon.data.repository.PreferenceRepository
-import com.sumi.pockon.data.repository.AlarmRepository
+import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
+import com.sumi.pockon.domain.usecase.ScheduleGiftAlarmUseCase
 import com.sumi.pockon.domain.usecase.GetGiftCountByEndDateUseCase
 import com.sumi.pockon.domain.usecase.ObserveAllGiftsUseCase
 import com.sumi.pockon.domain.usecase.ObserveGiftUseCase
@@ -36,7 +37,9 @@ class AlarmReceiver : BroadcastReceiver() {
     @Inject
     lateinit var preferenceRepository: PreferenceRepository
     @Inject
-    lateinit var alarmRepository: AlarmRepository
+    lateinit var cancelGiftAlarmUseCase: CancelGiftAlarmUseCase
+    @Inject
+    lateinit var scheduleGiftAlarmUseCase: ScheduleGiftAlarmUseCase
 
     override fun onReceive(context: Context, intent: Intent) {
         // 재부팅 후 알람 매니저 재등록
@@ -46,9 +49,9 @@ class AlarmReceiver : BroadcastReceiver() {
                 observeAllGiftsUseCase().take(1).collectLatest { allGift ->
                     allGift.forEach { gift ->
                         // 알림 등록
-                        alarmRepository.cancelAlarm(gift.id, preferenceRepository.getNotiEndDtDay())
+                        cancelGiftAlarmUseCase(gift.id, preferenceRepository.getNotiEndDtDay())
                         if (isNotiEndDt) {
-                            alarmRepository.setAlarm(gift, preferenceRepository.getNotiEndDtDay(), preferenceRepository.getNotiEndDtTime())
+                            scheduleGiftAlarmUseCase(gift, preferenceRepository.getNotiEndDtDay(), preferenceRepository.getNotiEndDtTime())
                         }
                     }
                 }

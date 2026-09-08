@@ -12,8 +12,8 @@ import com.sumi.pockon.domain.usecase.SignOutUseCase
 import com.sumi.pockon.domain.usecase.DeleteGiftsUseCase
 import com.sumi.pockon.domain.usecase.ObserveAllGiftsUseCase
 import com.sumi.pockon.domain.usecase.ClearAllGiftsUseCase
-import com.sumi.pockon.data.model.Gift
-import com.sumi.pockon.data.repository.AlarmRepository
+import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
+import com.sumi.pockon.domain.usecase.ScheduleGiftAlarmUseCase
 import com.sumi.pockon.domain.usecase.ClearBrandCacheUseCase
 import com.sumi.pockon.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,7 +37,8 @@ class SettingsViewModel @Inject constructor(
     private val clearAllGiftsUseCase: ClearAllGiftsUseCase,
     private val clearBrandCacheUseCase: ClearBrandCacheUseCase,
     private val preferenceRepository: PreferenceRepository,
-    private val alarmRepository: AlarmRepository,
+    private val cancelGiftAlarmUseCase: CancelGiftAlarmUseCase,
+    private val scheduleGiftAlarmUseCase: ScheduleGiftAlarmUseCase,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
@@ -66,10 +67,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             observeAllGiftsUseCase().take(1).collectLatest { allGift ->
                 allGift.forEach { gift ->
-                    alarmRepository.cancelAlarm(gift.id, preferenceRepository.getNotiEndDtDay())
+                    cancelGiftAlarmUseCase(gift.id, preferenceRepository.getNotiEndDtDay())
                     if (isNotiEndDt && gift.usedDt.isEmpty()) {
                         // 알림 등록
-                        alarmRepository.setAlarm(gift, preferenceRepository.getNotiEndDtDay(), preferenceRepository.getNotiEndDtTime())
+                        scheduleGiftAlarmUseCase(gift, preferenceRepository.getNotiEndDtDay(), preferenceRepository.getNotiEndDtTime())
                     }
                 }
             }
@@ -87,7 +88,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             observeAllGiftsUseCase().take(1).collectLatest { gifts ->
                 gifts.forEach { gift ->
-                    alarmRepository.cancelAlarm(gift.id, preferenceRepository.getNotiEndDtDay())
+                    cancelGiftAlarmUseCase(gift.id, preferenceRepository.getNotiEndDtDay())
                 }
                 clearAllGiftsUseCase()
                 clearBrandCacheUseCase()
@@ -137,7 +138,7 @@ class SettingsViewModel @Inject constructor(
                 return@launch
             }
 
-            gifts.forEach { gift -> alarmRepository.cancelAlarm(gift.id, preferenceRepository.getNotiEndDtDay()) }
+            gifts.forEach { gift -> cancelGiftAlarmUseCase(gift.id, preferenceRepository.getNotiEndDtDay()) }
             clearAllGiftsUseCase()
             clearBrandCacheUseCase()
             if (!isGuestMode) signOutUseCase()

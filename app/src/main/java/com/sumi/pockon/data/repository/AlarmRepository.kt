@@ -1,19 +1,19 @@
 package com.sumi.pockon.data.repository
 
 import com.sumi.pockon.data.local.alarm.AlarmDataSource
-import com.sumi.pockon.data.local.preference.PreferenceLocalDataSource
 import com.sumi.pockon.data.model.Gift
+import com.sumi.pockon.domain.repository.AlarmRepository
 import javax.inject.Inject
 
-class AlarmRepository @Inject constructor(
+class AlarmRepositoryImpl @Inject constructor(
     private val alarmDataSource: AlarmDataSource
-) {
+) : AlarmRepository {
 
-    fun setAlarm(gift: Gift, dDay: Int, time: Pair<Int, Int>) {
+    override fun schedule(gift: Gift, dDay: Int, time: Pair<Int, Int>) {
         alarmDataSource.schedule(gift, dDay, time)
     }
 
-    fun cancelAlarm(id: String, dDay: Int) {
+    override fun cancel(id: String, dDay: Int) {
         alarmDataSource.cancel(id, dDay)
     }
 }

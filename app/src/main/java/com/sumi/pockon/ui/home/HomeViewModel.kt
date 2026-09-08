@@ -7,7 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.data.repository.PreferenceRepository
 import com.sumi.pockon.data.model.Document
 import com.sumi.pockon.data.model.Gift
-import com.sumi.pockon.data.repository.AlarmRepository
+import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
+import com.sumi.pockon.domain.usecase.ScheduleGiftAlarmUseCase
 import com.sumi.pockon.domain.usecase.SyncGiftListUseCase
 import com.sumi.pockon.domain.usecase.SearchNearbyBrandUseCase
 import com.sumi.pockon.domain.usecase.ObserveAllGiftsUseCase
@@ -24,7 +25,8 @@ class HomeViewModel @Inject constructor(
     private val syncGiftListUseCase: SyncGiftListUseCase,
     private val searchNearbyBrandUseCase: SearchNearbyBrandUseCase,
     private val preferenceRepository: PreferenceRepository,
-    private val alarmRepository: AlarmRepository,
+    private val cancelGiftAlarmUseCase: CancelGiftAlarmUseCase,
+    private val scheduleGiftAlarmUseCase: ScheduleGiftAlarmUseCase,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
@@ -87,10 +89,10 @@ class HomeViewModel @Inject constructor(
             giftList = allGift
 
             giftList.forEach { gift ->
-                alarmRepository.cancelAlarm(gift.id, preferenceRepository.getNotiEndDtDay())
+                cancelGiftAlarmUseCase(gift.id, preferenceRepository.getNotiEndDtDay())
                 if (isNotiEndDt && gift.usedDt.isEmpty()) {
                     // 알림 등록
-                    alarmRepository.setAlarm(gift, preferenceRepository.getNotiEndDtDay(), preferenceRepository.getNotiEndDtTime())
+                    scheduleGiftAlarmUseCase(gift, preferenceRepository.getNotiEndDtDay(), preferenceRepository.getNotiEndDtTime())
                 }
             }
 

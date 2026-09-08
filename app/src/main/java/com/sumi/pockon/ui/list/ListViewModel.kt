@@ -8,7 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.data.repository.PreferenceRepository
 import com.sumi.pockon.data.model.Gift
-import com.sumi.pockon.data.repository.AlarmRepository
+import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
 import com.sumi.pockon.domain.usecase.DeleteGiftUseCase
 import com.sumi.pockon.domain.usecase.DeleteGiftsUseCase
 import com.sumi.pockon.domain.usecase.SyncGiftListUseCase
@@ -34,7 +34,7 @@ class ListViewModel @Inject constructor(
     private val deleteGiftUseCase: DeleteGiftUseCase,
     private val deleteGiftsUseCase: DeleteGiftsUseCase,
     private val preferenceRepository: PreferenceRepository,
-    private val alarmRepository: AlarmRepository,
+    private val cancelGiftAlarmUseCase: CancelGiftAlarmUseCase,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
@@ -242,7 +242,7 @@ class ListViewModel @Inject constructor(
                 shouldUploadPhoto = false
             )
             if (result.isSuccess) {
-                alarmRepository.cancelAlarm(gift.id, preferenceRepository.getNotiEndDtDay())
+                cancelGiftAlarmUseCase(gift.id, preferenceRepository.getNotiEndDtDay())
             } else {
                 _events.emit(ListEvent.GiftUseFailed)
             }
@@ -268,7 +268,7 @@ class ListViewModel @Inject constructor(
         viewModelScope.launch {
             val result = deleteGiftUseCase(isGuestMode, uid, id)
             if (result.isSuccess) {
-                alarmRepository.cancelAlarm(gift.id, preferenceRepository.getNotiEndDtDay())
+                cancelGiftAlarmUseCase(gift.id, preferenceRepository.getNotiEndDtDay())
                 _events.emit(ListEvent.GiftDeleted(isBulk = false))
             } else {
                 _events.emit(ListEvent.GiftDeleteFailed)
@@ -324,7 +324,7 @@ class ListViewModel @Inject constructor(
             val result = deleteGiftsUseCase(isGuestMode, uid, ids)
             if (result.isSuccess) {
                 ids.forEach { id ->
-                    alarmRepository.cancelAlarm(id, preferenceRepository.getNotiEndDtDay())
+                    cancelGiftAlarmUseCase(id, preferenceRepository.getNotiEndDtDay())
                 }
                 _events.emit(ListEvent.GiftDeleted(isBulk = true))
             } else {

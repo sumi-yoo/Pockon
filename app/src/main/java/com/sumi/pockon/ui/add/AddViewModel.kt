@@ -10,7 +10,6 @@ import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
 import com.sumi.pockon.R
 import com.sumi.pockon.data.repository.PreferenceRepository
 import com.sumi.pockon.data.model.Gift
-import com.sumi.pockon.data.repository.AlarmRepository
 import com.sumi.pockon.domain.usecase.AddGiftUseCase
 import com.sumi.pockon.util.GifticonParser
 import com.sumi.pockon.util.NetworkMonitor
@@ -28,7 +27,6 @@ import javax.inject.Inject
 class AddViewModel @Inject constructor(
     private val addGiftUseCase: AddGiftUseCase,
     private val preferenceRepository: PreferenceRepository,
-    private val alarmRepository: AlarmRepository,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 

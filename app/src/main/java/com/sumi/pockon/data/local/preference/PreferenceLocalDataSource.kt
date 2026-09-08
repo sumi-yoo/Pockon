@@ -91,7 +91,7 @@ class PreferenceLocalDataSource @Inject constructor(
     }
 
     fun removeAuthPin() {
-        prefs.edit().remove(SharedPreferenceKeys.AUTH_PIN).apply()
+        prefs.edit().putBoolean(SharedPreferenceKeys.AUTH_PIN, false).apply()
     }
 
     fun removeAll() {
