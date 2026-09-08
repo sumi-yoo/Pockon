@@ -11,6 +11,9 @@ import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.Navigation
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
@@ -19,6 +22,7 @@ import com.sumi.pockon.databinding.FragmentLoginBinding
 import com.sumi.pockon.ui.loading.LoadingScreen
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class LoginFragment : Fragment() {
@@ -54,17 +58,9 @@ class LoginFragment : Fragment() {
             // 동의 팝업 띄우고 동의하면 로그인 시작
             showPrivacyConsentDialog {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    loginViewModel.loginForApiHigher {
-                        if (!it) {
-                            loginViewModel.getSignInIntent { signInIntent ->
-                                signInLauncher.launch(signInIntent)
-                            }
-                        }
-                    }
+                    loginViewModel.loginForApiHigher()
                 } else {
-                    loginViewModel.getSignInIntent { signInIntent ->
-                        signInLauncher.launch(signInIntent)
-                    }
+                    loginViewModel.requestSignInIntent()
                 }
             }
         }
@@ -97,6 +93,17 @@ class LoginFragment : Fragment() {
         loginViewModel.isLoading.observe(viewLifecycleOwner) {
             binding.cvLoadingScreen.setContent {
                 if (it) LoadingScreen()
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                loginViewModel.events.collect { event ->
+                    when (event) {
+                        is LoginEvent.LaunchSignIn -> signInLauncher.launch(event.intent)
+                        LoginEvent.RequestLegacySignIn -> loginViewModel.requestSignInIntent()
+                    }
+                }
             }
         }
 

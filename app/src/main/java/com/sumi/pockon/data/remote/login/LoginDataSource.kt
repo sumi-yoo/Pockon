@@ -16,6 +16,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.sumi.pockon.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class LoginDataSource @Inject constructor(
@@ -37,7 +38,7 @@ class LoginDataSource @Inject constructor(
         .addCredentialOption(googleIdOption)
         .build()
 
-    fun getSignInIntent(accountName: String?, onComplete: (Intent) -> Unit) {
+    suspend fun getSignInIntent(accountName: String?): Intent {
         // 반드시 signOut을 먼저 호출해줘야 다중 계정 선택 가능
         val gso = if (accountName.isNullOrEmpty()) {
             GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -53,22 +54,19 @@ class LoginDataSource @Inject constructor(
         }
 
         val googleSignInClient = GoogleSignIn.getClient(context, gso)
-        googleSignInClient.signOut().addOnCompleteListener {
-            val signInIntent = googleSignInClient.signInIntent
-            onComplete(signInIntent)
-        }
+        googleSignInClient.signOut().await()
+        return googleSignInClient.signInIntent
     }
 
-    suspend fun getIdToken(): GoogleIdTokenCredential? {
-        var result: GoogleIdTokenCredential? = null
+    suspend fun getIdToken(): GoogleIdTokenCredential {
         try {
             val credential = credentialManager.getCredential(
                 request = request,
                 context = context
             ).credential
-            when (credential) {
+            val googleCredential = when (credential) {
                 is CustomCredential -> {
-                    result = if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                    if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                         try {
                             GoogleIdTokenCredential.createFrom(credential.data)
                         } catch (e: GoogleIdTokenParsingException) {
@@ -79,62 +77,36 @@ class LoginDataSource @Inject constructor(
                     }
                 }
                 else -> {
-                    result = null
+                    null
                 }
             }
             credentialManager.clearCredentialState(request = ClearCredentialStateRequest())
-            return result
+            return requireNotNull(googleCredential) { "Google credential is required." }
         } catch (e: GetCredentialException) {
-            return result
+            throw e
         }
     }
 
-    fun login(idToken: String, onComplete: (String) -> Unit) {
+    suspend fun login(idToken: String): String {
         val credential = GoogleAuthProvider.getCredential(idToken, null)
-        auth.signInWithCredential(credential).addOnCompleteListener { task ->
-            if (task.isSuccessful) onComplete(task.result.user?.uid ?: "")
-            else onComplete("")
-        }
+        return requireNotNull(auth.signInWithCredential(credential).await().user?.uid) { "User ID is required." }
     }
 
     fun logout() {
         auth.signOut()
     }
 
-    fun removeAccount(idToken: String?, selectedCredential: GoogleIdTokenCredential? = null, onComplete: (Boolean) -> Unit) {
-        if (idToken.isNullOrEmpty()) {
-            onComplete(false)
-            return
-        }
+    suspend fun removeAccount(idToken: String?, selectedCredential: GoogleIdTokenCredential? = null) {
+        require(!idToken.isNullOrEmpty()) { "ID token is required." }
+        val user = requireNotNull(auth.currentUser) { "Signed-in user is required." }
+        require(selectedCredential == null || selectedCredential.id == idToken) { "Selected account does not match." }
 
-        val user = auth.currentUser
-        if (user != null) {
-            // 이메일 비교
-            if (selectedCredential != null) {
-                if (selectedCredential.id != idToken) {
-                    onComplete(false)
-                    return
-                }
-            }
-
-            val credential = if (selectedCredential != null) {
-                GoogleAuthProvider.getCredential(selectedCredential.idToken, null)
-            } else {
-                GoogleAuthProvider.getCredential(idToken, null)
-            }
-            user.reauthenticate(credential)
-                .addOnCompleteListener { reauthTask ->
-                    if (reauthTask.isSuccessful) {
-                        user.delete()
-                            .addOnCompleteListener { deleteTask ->
-                                onComplete(deleteTask.isSuccessful)
-                            }
-                    } else {
-                        onComplete(false)
-                    }
-                }
+        val credential = if (selectedCredential != null) {
+            GoogleAuthProvider.getCredential(selectedCredential.idToken, null)
         } else {
-            onComplete(false)
+            GoogleAuthProvider.getCredential(idToken, null)
         }
+        user.reauthenticate(credential).await()
+        user.delete().await()
     }
 }

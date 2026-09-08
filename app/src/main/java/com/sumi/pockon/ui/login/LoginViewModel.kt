@@ -1,23 +1,31 @@
 package com.sumi.pockon.ui.login
 
-import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sumi.pockon.data.repository.LoginRepository
 import com.sumi.pockon.data.repository.PreferenceRepository
+import com.sumi.pockon.domain.usecase.GetGoogleCredentialUseCase
+import com.sumi.pockon.domain.usecase.GetSignInIntentUseCase
+import com.sumi.pockon.domain.usecase.SignInUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val loginRepository: LoginRepository,
+    private val getGoogleCredentialUseCase: GetGoogleCredentialUseCase,
+    private val getSignInIntentUseCase: GetSignInIntentUseCase,
+    private val signInUseCase: SignInUseCase,
     private val preferenceRepository: PreferenceRepository
 ) : ViewModel() {
+
+    private val eventChannel = Channel<LoginEvent>(Channel.BUFFERED)
+    val events = eventChannel.receiveAsFlow()
 
     private val _isLogin = MutableLiveData(false)
     val isLogin: LiveData<Boolean> = _isLogin
@@ -43,9 +51,13 @@ class LoginViewModel @Inject constructor(
         return isPinUse
     }
 
-    fun getSignInIntent(onComplete: (Intent) -> Unit) {
-        loginRepository.getSignInIntent(preferenceRepository.getEmail()) {
-            onComplete(it)
+    fun requestSignInIntent() {
+        viewModelScope.launch {
+            getSignInIntentUseCase(preferenceRepository.getEmail()).onSuccess { intent ->
+                eventChannel.send(LoginEvent.LaunchSignIn(intent))
+            }.onFailure {
+                _isFail.value = true
+            }
         }
     }
 
@@ -64,47 +76,47 @@ class LoginViewModel @Inject constructor(
         }
 
         _isLoading.postValue(true)
-        loginRepository.login(idToken) {
-            if (it.isEmpty()) {
+        viewModelScope.launch {
+            signInUseCase(idToken).onSuccess { uid ->
+                isPinUse = true
+                _isLogin.value = true
+                preferenceRepository.saveUid(uid)
+                preferenceRepository.saveEmail(email)
+                name?.let(preferenceRepository::saveName)
+                profileImg?.let { preferenceRepository.saveProfileImage(it.toString()) }
+            }.onFailure {
                 _isLogin.postValue(false)
                 _isFail.postValue(true)
-            } else {
-                isPinUse = true
-                _isLogin.postValue(true)
-                preferenceRepository.saveUid(it)
-                preferenceRepository.saveEmail(email)
-                name?.let { preferenceRepository.saveName(name) }
-                profileImg?.let { preferenceRepository.saveProfileImage(profileImg.toString()) }
             }
             _isLoading.postValue(false)
         }
     }
 
-    fun loginForApiHigher(onRetry: (Boolean) -> Unit) {
+    fun loginForApiHigher() {
         _isLoading.postValue(true)
         viewModelScope.launch {
-            val credential = loginRepository.getTokenForApiHigher()
-            if (credential == null) {
-                _isLogin.postValue(false)
+            getGoogleCredentialUseCase().onFailure {
                 _isLoading.postValue(false)
-                onRetry(false)
-                return@launch
-            }
-
-            loginRepository.login(credential.idToken) {
-                if (it.isEmpty()) {
-                    _isLogin.postValue(false)
-                    _isFail.postValue(true)
-                } else {
+                eventChannel.send(LoginEvent.RequestLegacySignIn)
+            }.onSuccess { credential ->
+                signInUseCase(credential.idToken).onSuccess { uid ->
                     isPinUse = true
                     _isLogin.postValue(true)
-                    preferenceRepository.saveUid(it)
+                    preferenceRepository.saveUid(uid)
                     preferenceRepository.saveEmail(credential.id)
                     credential.displayName?.let { name -> preferenceRepository.saveName(name) }
                     credential.profilePictureUri?.let { uri -> preferenceRepository.saveProfileImage(uri.toString()) }
+                }.onFailure {
+                    _isLogin.postValue(false)
+                    _isFail.postValue(true)
                 }
                 _isLoading.postValue(false)
             }
         }
     }
+}
+
+sealed interface LoginEvent {
+    data class LaunchSignIn(val intent: android.content.Intent) : LoginEvent
+    data object RequestLegacySignIn : LoginEvent
 }

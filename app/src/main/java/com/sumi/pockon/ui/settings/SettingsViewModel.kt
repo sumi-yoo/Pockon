@@ -8,7 +8,10 @@ import androidx.lifecycle.viewModelScope
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.sumi.pockon.data.repository.PreferenceRepository
 import com.sumi.pockon.data.repository.GiftRepository
-import com.sumi.pockon.data.repository.LoginRepository
+import com.sumi.pockon.domain.usecase.DeleteAccountUseCase
+import com.sumi.pockon.domain.usecase.GetGoogleCredentialUseCase
+import com.sumi.pockon.domain.usecase.GetSignInIntentUseCase
+import com.sumi.pockon.domain.usecase.SignOutUseCase
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.data.repository.AlarmRepository
 import com.sumi.pockon.domain.usecase.ClearBrandCacheUseCase
@@ -23,7 +26,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val loginRepository: LoginRepository,
+    private val getSignInIntentUseCase: GetSignInIntentUseCase,
+    private val getGoogleCredentialUseCase: GetGoogleCredentialUseCase,
+    private val deleteAccountUseCase: DeleteAccountUseCase,
+    private val signOutUseCase: SignOutUseCase,
     private val giftRepository: GiftRepository,
     private val clearBrandCacheUseCase: ClearBrandCacheUseCase,
     private val preferenceRepository: PreferenceRepository,
@@ -81,7 +87,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun logout() {
-        if (!isGuestMode) loginRepository.logout()
+        if (!isGuestMode) signOutUseCase()
         preferenceRepository.removeAll()
         viewModelScope.launch(Dispatchers.IO) {
             giftRepository.getAllGift(1).take(1).collectLatest { gifts ->
@@ -95,14 +101,14 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun getSignInIntent(onComplete: (Intent) -> Unit) {
-        loginRepository.getSignInIntent(preferenceRepository.getEmail()) {
-            onComplete(it)
+        viewModelScope.launch {
+            getSignInIntentUseCase(preferenceRepository.getEmail()).onSuccess(onComplete)
         }
     }
 
     fun getIdToken(onComplete: (GoogleIdTokenCredential?) -> Unit) {
         viewModelScope.launch {
-            onComplete(loginRepository.getTokenForApiHigher())
+            onComplete(getGoogleCredentialUseCase().getOrNull())
         }
     }
 
@@ -128,20 +134,20 @@ class SettingsViewModel @Inject constructor(
                         }
                         if (!isGuestMode) {
                             if (credential == null) {
-                                loginRepository.removeAccount(idToken) {
-                                    if (it) {
-                                        loginRepository.logout()
+                                viewModelScope.launch {
+                                    deleteAccountUseCase(idToken).onSuccess {
+                                        signOutUseCase()
                                         preferenceRepository.removeAll()
-                                    }
-                                    onSuccess(it)
+                                        onSuccess(true)
+                                    }.onFailure { onSuccess(false) }
                                 }
                             } else {
-                                loginRepository.removeAccount(preferenceRepository.getEmail(), credential) {
-                                    if (it) {
-                                        loginRepository.logout()
+                                viewModelScope.launch {
+                                    deleteAccountUseCase(preferenceRepository.getEmail(), credential).onSuccess {
+                                        signOutUseCase()
                                         preferenceRepository.removeAll()
-                                    }
-                                    onSuccess(it)
+                                        onSuccess(true)
+                                    }.onFailure { onSuccess(false) }
                                 }
                             }
                         } else {

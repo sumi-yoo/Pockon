@@ -7,7 +7,6 @@ import androidx.room.Room
 import com.sumi.pockon.data.local.brand.BrandDatabase
 import com.sumi.pockon.data.local.gift.GiftDatabase
 import com.sumi.pockon.data.repository.GiftRepository
-import com.sumi.pockon.data.repository.LoginRepository
 import com.sumi.pockon.R
 import com.sumi.pockon.data.remote.brand.KaKaoSearchAPI
 import com.sumi.pockon.data.local.gift.GiftLocalDataSource
@@ -50,12 +49,6 @@ class DiModule {
     @Provides
     fun provideFirebaseFirestore(): FirebaseFirestore {
         return FirebaseFirestore.getInstance()
-    }
-
-    @Singleton
-    @Provides
-    fun provideLoginRepository(loginDataSource: LoginDataSource): LoginRepository {
-        return LoginRepository(loginDataSource)
     }
 
     @Singleton
