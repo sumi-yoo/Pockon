@@ -6,13 +6,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.data.repository.PreferenceRepository
 import com.sumi.pockon.data.local.gift.GiftEntity
-import com.sumi.pockon.data.repository.BrandSearchRepository
 import com.sumi.pockon.data.repository.GiftRepository
 import com.sumi.pockon.data.model.Document
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.data.repository.AlarmRepository
+import com.sumi.pockon.domain.usecase.SyncGiftListUseCase
+import com.sumi.pockon.domain.usecase.SearchNearbyBrandUseCase
 import com.sumi.pockon.util.NetworkMonitor
-import com.sumi.pockon.util.getDdayInt
 import com.sumi.pockon.util.loadImageFromPath
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -23,7 +23,8 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val giftRepository: GiftRepository,
-    private val brandSearchRepository: BrandSearchRepository,
+    private val syncGiftListUseCase: SyncGiftListUseCase,
+    private val searchNearbyBrandUseCase: SearchNearbyBrandUseCase,
     private val preferenceRepository: PreferenceRepository,
     private val alarmRepository: AlarmRepository,
     private val networkMonitor: NetworkMonitor
@@ -62,19 +63,15 @@ class HomeViewModel @Inject constructor(
             return
         } // 게스트 모드 또는 최초 로그인이 아니면 서버 안탐
 
-        giftRepository.getAllGift(uid) { gifts ->
-            if (gifts.isNotEmpty()) {
-                // 로컬 저장(기프티콘)
-                viewModelScope.launch(Dispatchers.IO) {
-                    giftRepository.deleteAllAndInsertGifts(gifts)
-                    if (isFirstLogin) preferenceRepository.saveIsFirstLogin(false)
+        viewModelScope.launch {
+            try {
+                val result = syncGiftListUseCase(uid)
+                if (result.isSuccess) {
+                    preferenceRepository.saveIsFirstLogin(false)
                 }
-            } else {
-                this.giftList = listOf()
-                _nearGiftList.value = listOf()
-                _favoriteGiftList.value = listOf()
+            } finally {
+                _isShowIndicator.value = false
             }
-            _isShowIndicator.value = false
         }
     }
 
@@ -133,66 +130,12 @@ class HomeViewModel @Inject constructor(
     private fun getBrandInfoList() {
         if (!networkMonitor.isConnected()) return
 
-        val allList: ArrayList<Pair<Gift, Document>> = arrayListOf()
+        val longitude = longitude ?: return
+        val latitude = latitude ?: return
 
-        val brandNames = ArrayList<String>()
-        val tempList = giftList.filter { it.usedDt.isEmpty() && getDdayInt(it.endDt) >= 0 }
-        tempList.forEach {
-            if (!brandNames.contains(it.brand)) brandNames.add(it.brand)
-        }
-        if (brandNames.isNotEmpty() && longitude != null && latitude != null) {
-            brandSearchRepository.searchBrandInfoList(
-                longitude!!,
-                latitude!!,
-                brandNames
-            ) { brandInfoList ->
-                tempList.forEach { gift ->
-                    // 가장 가까운 첫번째 위치만 보여준다(여러개의 스타벅스 중 가장 가까이 있는 한 곳)
-                    if (brandInfoList[gift.brand]?.isEmpty() == true) return@forEach // 검색 결과가 없는 경우 스킵
-                    val filterList = brandInfoList[gift.brand]
-                        ?.filter { doc ->
-                            try {
-                                Integer.parseInt(doc.distance) // 변환이 가능하면 true
-                                true
-                            } catch (e: NumberFormatException) {
-                                false // 변환 불가능한 경우 false
-                            }
-                        }
-                    if (filterList?.isNotEmpty() == true) {
-                        filterList
-                            .sortedBy { Integer.parseInt(it.distance) }[0]
-                            .let { doc ->
-                                // gift, doc
-                                allList.add(Pair(gift, doc))
-                            }
-
-                    }
-                }
-                // 거리순으로 정렬(스타벅스, 투썸..)
-                val sortedList = allList.sortedWith(
-                    compareBy(
-                        { it.second.distance.toDouble() }, // 거리순
-                        { it.first.brand },     // 브랜드명 순
-                        { it.first.name },      // 상품명 순
-                        { it.first.endDt ?: "99991231" } // null 또는 빈 값은 가장 마지막으로 정렬
-                    )
-                )
-
-                _nearGiftList.value = sortedList
-
-                // 로컬 저장
-                viewModelScope.launch(Dispatchers.IO) {
-                    brandSearchRepository.deleteAllBrands()
-                    brandInfoList.forEach { (keyword, documents) ->
-                        if (documents != null) brandSearchRepository.insertBrands(
-                            keyword,
-                            documents
-                        ) // 키워드별 브랜드 위치정보 저장
-                    }
-                }
-            }
-        } else {
-            _nearGiftList.value = listOf()
+        viewModelScope.launch {
+            searchNearbyBrandUseCase(giftList, longitude, latitude)
+                .onSuccess { nearGifts -> _nearGiftList.value = nearGifts }
         }
     }
 

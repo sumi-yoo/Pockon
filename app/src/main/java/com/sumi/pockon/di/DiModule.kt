@@ -11,6 +11,7 @@ import com.sumi.pockon.data.repository.LoginRepository
 import com.sumi.pockon.R
 import com.sumi.pockon.data.repository.BrandSearchRepository
 import com.sumi.pockon.data.remote.brand.BrandSearchRemoteDataSource
+import com.sumi.pockon.data.remote.brand.KaKaoSearchAPI
 import com.sumi.pockon.data.local.gift.GiftLocalDataSource
 import com.sumi.pockon.data.local.brand.BrandDao
 import com.sumi.pockon.data.local.brand.BrandLocalDataSource
@@ -35,6 +36,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -88,10 +91,17 @@ class DiModule {
         return BrandSearchRepository(brandSearchRemoteDataSource, brandLocalDataSource)
     }
 
+    @Singleton
     @Provides
-    fun provideBrandSearchRemoteDataSource(): BrandSearchRemoteDataSource {
-        return BrandSearchRemoteDataSource()
-    }
+    fun provideKakaoRetrofit(): Retrofit = Retrofit.Builder()
+        .baseUrl("https://dapi.kakao.com/")
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
+    @Singleton
+    @Provides
+    fun provideKakaoSearchApi(retrofit: Retrofit): KaKaoSearchAPI =
+        retrofit.create(KaKaoSearchAPI::class.java)
 
     @Provides
     fun provideBrandLocalDataSource(brandsDao: BrandDao): BrandLocalDataSource {
