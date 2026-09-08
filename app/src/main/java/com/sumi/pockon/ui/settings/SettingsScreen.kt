@@ -39,6 +39,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,7 +73,6 @@ fun SettingsScreen(
     onUsedGift: () -> Unit,
     movePinScreen: () -> Unit,
     moveLogInScreen: () -> Unit,
-    moveCopyrightScreen: () -> Unit,
     moveNotiImminentUseScreen: () -> Unit,
     isLoading: (Boolean) -> Unit
 ) {
@@ -98,16 +98,7 @@ fun SettingsScreen(
             val account = task.getResult(ApiException::class.java)
             val idToken = account?.idToken
             if (idToken != null) {
-                settingViewModel.removeAccount(idToken) { isSuccess ->
-                    isLoading(false)
-                    if (isSuccess) { // 로그인 화면으로 이동
-                        moveLogInScreen()
-                    } else { // "회원탈퇴에 실패했습니다."
-                        scope.launch {
-                            snackbarHostState.showSnackbar(message = context.getString(R.string.msg_remove_account_fail))
-                        }
-                    }
-                }
+                settingViewModel.removeAccount(idToken)
             } else {
                 isLoading(false)
                 scope.launch {
@@ -268,13 +259,6 @@ fun SettingsScreen(
                         )
                     }
 
-                    // 저작권 표기
-//                    SettingItem(
-//                        text = stringResource(id = R.string.txt_copyright),
-//                        onClick = {
-//                            moveCopyrightScreen()
-//                        }
-//                    )
                 }
             }
         }
@@ -306,29 +290,9 @@ fun SettingsScreen(
                     showRemoveDlg = false
                     isLoading(true)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                        settingViewModel.getIdToken { credential ->
-                            if (credential == null) {
-                                isLoading(false)
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(message = context.getString(R.string.msg_remove_account_fail))
-                                }
-                            } else {
-                                settingViewModel.removeAccount(null, credential) { result ->
-                                    isLoading(false)
-                                    if (result) { // 로그인 화면으로 이동
-                                        moveLogInScreen()
-                                    } else { // "회원탈퇴에 실패했습니다."
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar(message = context.getString(R.string.msg_remove_account_fail))
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        settingViewModel.removeAccountWithCredential()
                     } else {
-                        settingViewModel.getSignInIntent { signInIntent ->
-                            launcher.launch(signInIntent)
-                        }
+                        settingViewModel.requestLegacySignIn()
                     }
                 },
                 onDismiss = {
@@ -346,6 +310,22 @@ fun SettingsScreen(
                     settingViewModel.changeNoInternetDialogState()
                 }
                 .show()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        settingViewModel.events.collect { event ->
+            when (event) {
+                is SettingsEvent.LaunchSignIn -> launcher.launch(event.intent)
+                SettingsEvent.AccountDeleted -> {
+                    isLoading(false)
+                    moveLogInScreen()
+                }
+                SettingsEvent.AccountDeletionFailed -> {
+                    isLoading(false)
+                    snackbarHostState.showSnackbar(context.getString(R.string.msg_remove_account_fail))
+                }
+            }
         }
     }
 }

@@ -18,7 +18,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
-import java.io.IOException
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -167,18 +167,16 @@ class AddViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val recognizer = TextRecognition.getClient(KoreanTextRecognizerOptions.Builder().build())
-                recognizer.process(bitmap, 0)
-                    .addOnSuccessListener {
-                        val info = GifticonParser.parse(it.text)
-                        _name.value = info.name
-                        _brand.value = info.brand
-                        _cash.value = info.cash
-                        _endDate.value = info.endDate
-                        if (_cash.value.isNotEmpty()) {
-                            _isCheckedCash.value = true
-                        }
-                    }
-            } catch (_: IOException) { }
+                val result = recognizer.process(bitmap, 0).await()
+                val info = GifticonParser.parse(result.text)
+                _name.value = info.name
+                _brand.value = info.brand
+                _cash.value = info.cash
+                _endDate.value = info.endDate
+                if (_cash.value.isNotEmpty()) {
+                    _isCheckedCash.value = true
+                }
+            } catch (_: Exception) { }
         }
     }
 }

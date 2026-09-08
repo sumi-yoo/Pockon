@@ -3,10 +3,7 @@ package com.sumi.pockon.ui.main
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.Build
-import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
@@ -192,9 +189,6 @@ fun BottomNavigationBar(
                     moveLogInScreen = {
                         moveLogInScreen()
                     },
-                    moveCopyrightScreen = {
-                        navController.navigate(route = Screen.Copyright.route)
-                    },
                     moveNotiImminentUseScreen = {
                         navController.navigate(route = Screen.NotificationSetting.route)
                     },
@@ -363,17 +357,4 @@ sealed class Screen(val route: String, val icon: ImageVector, @StringRes val lab
     data object Used : Screen("used", Icons.Filled.LocationOn, R.string.txt_usage_history)
     data object Copyright : Screen("copyright", Icons.Filled.LocationOn, R.string.txt_copyright)
     data object NotificationSetting : Screen("notification_setting", Icons.Filled.LocationOn, R.string.txt_noti_of_imminent_use)
-}
-
-fun isNetworkConnected(context: Context): Boolean {
-    val connectivityManager =
-        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        val network = connectivityManager.activeNetwork
-        val capabilities = connectivityManager.getNetworkCapabilities(network)
-        return capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-    } else {
-        val activeNetworkInfo = connectivityManager.activeNetworkInfo
-        return activeNetworkInfo != null && activeNetworkInfo.isConnected
-    }
 }

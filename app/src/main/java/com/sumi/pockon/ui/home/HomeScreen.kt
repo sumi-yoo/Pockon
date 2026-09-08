@@ -46,6 +46,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -72,6 +73,9 @@ import com.sumi.pockon.util.formatString
 import com.sumi.pockon.util.getDday
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 @Composable
 fun HomeScreen(
@@ -86,15 +90,17 @@ fun HomeScreen(
         LocationServices.getFusedLocationProviderClient(context)
     }
     val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
 
     var longitude: Double? by rememberSaveable { mutableStateOf(null) }
     var latitude: Double? by rememberSaveable { mutableStateOf(null) }
     var isShowNoInternetDialog by rememberSaveable { mutableStateOf(false) }
 
-    getLocation(context, fusedLocationClient) {
-        // 위치 가져오기
-        longitude = it?.longitude
-        latitude = it?.latitude
+    LaunchedEffect(Unit) {
+        getLocation(context, fusedLocationClient)?.let { location ->
+            longitude = location.longitude
+            latitude = location.latitude
+        }
     }
 
     LaunchedEffect(longitude, latitude) {
@@ -158,9 +164,11 @@ fun HomeScreen(
                                             }
                                             .show()
                                     } else {
-                                        getLocation(context, fusedLocationClient) { // 위치 동기화
-                                            longitude = it?.longitude
-                                            latitude = it?.latitude
+                                        scope.launch {
+                                            getLocation(context, fusedLocationClient)?.let { location ->
+                                                longitude = location.longitude
+                                                latitude = location.latitude
+                                            }
                                         }
                                     }
                                 },
@@ -463,11 +471,10 @@ fun EmptyNear(msg: Int) {
     }
 }
 
-private fun getLocation(
+private suspend fun getLocation(
     context: Context,
-    fusedLocationClient: FusedLocationProviderClient,
-    onComplete: (Location?) -> Unit
-) {
+    fusedLocationClient: FusedLocationProviderClient
+): Location? {
     val permissions = arrayOf(
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.ACCESS_COARSE_LOCATION
@@ -479,15 +486,15 @@ private fun getLocation(
                 it
             ) == PackageManager.PERMISSION_GRANTED
         }) {
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener {
-                onComplete(it)
-            }
-            .addOnFailureListener {
-                onComplete(null)
-            }
+        return try {
+            fusedLocationClient.lastLocation.await()
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Exception) {
+            null
+        }
     } else {
-        onComplete(null)
+        return null
     }
 }
 

@@ -7,13 +7,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.R
 import com.sumi.pockon.data.repository.PreferenceRepository
-import com.sumi.pockon.data.repository.GiftRepository
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.data.repository.AlarmRepository
 import com.sumi.pockon.domain.usecase.UpdateGiftFavoriteUseCase
 import com.sumi.pockon.domain.usecase.UpdateGiftUseCase
+import com.sumi.pockon.domain.usecase.ObserveGiftUseCase
 import com.sumi.pockon.util.NetworkMonitor
-import com.sumi.pockon.util.loadImageFromPath
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -27,7 +26,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DetailViewModel @Inject constructor(
-    private val legacyGiftRepository: GiftRepository,
+    private val observeGiftUseCase: ObserveGiftUseCase,
     private val updateGiftUseCase: UpdateGiftUseCase,
     private val updateGiftFavoriteUseCase: UpdateGiftFavoriteUseCase,
     private val alarmRepository: AlarmRepository,
@@ -86,22 +85,8 @@ class DetailViewModel @Inject constructor(
 
     fun getGift(id: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            legacyGiftRepository.getGift(id).collectLatest { gift ->
-                setGift(
-                    Gift(
-                        id = gift.id,
-                        uid = gift.uid,
-                        photo = loadImageFromPath(gift.photoPath),
-                        name = gift.name,
-                        brand = gift.brand,
-                        endDt = gift.endDt,
-                        addDt = gift.addDt,
-                        memo = gift.memo,
-                        usedDt = gift.usedDt,
-                        cash = gift.cash,
-                        isFavorite = gift.isFavorite
-                    )
-                )
+            observeGiftUseCase(id).collectLatest { gift ->
+                setGift(gift)
             }
         }
     }

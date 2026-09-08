@@ -6,11 +6,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.data.repository.PreferenceRepository
-import com.sumi.pockon.data.repository.GiftRepository
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.data.repository.AlarmRepository
+import com.sumi.pockon.domain.usecase.ObserveAllGiftsUseCase
 import com.sumi.pockon.util.convertTo12HourFormat
-import com.sumi.pockon.util.loadImageFromPath
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -19,7 +18,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class NotificationSettingViewModel @Inject constructor(
-    private val giftRepository: GiftRepository,
+    private val observeAllGiftsUseCase: ObserveAllGiftsUseCase,
     private val preferenceRepository: PreferenceRepository,
     private val alarmRepository: AlarmRepository
 ) : ViewModel() {
@@ -46,25 +45,8 @@ class NotificationSettingViewModel @Inject constructor(
         initTime()
 
         viewModelScope.launch(Dispatchers.IO) {
-            giftRepository.getAllGift(1).collectLatest { allGift ->
-                val tempList = ArrayList<Gift>()
-                allGift.forEach { gift ->
-                    val tempGift = Gift(
-                        id = gift.id,
-                        uid = gift.uid,
-                        photo = loadImageFromPath(gift.photoPath),
-                        name = gift.name,
-                        brand = gift.brand,
-                        endDt = gift.endDt,
-                        addDt = gift.addDt,
-                        memo = gift.memo,
-                        usedDt = gift.usedDt,
-                        cash = gift.cash,
-                        isFavorite = gift.isFavorite
-                    )
-                    tempList.add(tempGift)
-                }
-                giftList = tempList
+            observeAllGiftsUseCase().collectLatest { allGift ->
+                giftList = allGift
                 isLoading = false
             }
         }

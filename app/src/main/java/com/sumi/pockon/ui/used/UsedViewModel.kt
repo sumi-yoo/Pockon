@@ -5,11 +5,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.data.repository.PreferenceRepository
-import com.sumi.pockon.data.repository.GiftRepository
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.domain.usecase.DeleteGiftsUseCase
+import com.sumi.pockon.domain.usecase.ObserveUsedGiftsUseCase
 import com.sumi.pockon.util.NetworkMonitor
-import com.sumi.pockon.util.loadImageFromPath
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -22,7 +21,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class UsedViewModel @Inject constructor(
-    private val giftRepository: GiftRepository,
+    private val observeUsedGiftsUseCase: ObserveUsedGiftsUseCase,
     private val deleteGiftsUseCase: DeleteGiftsUseCase,
     private val preferenceRepository: PreferenceRepository,
     private val networkMonitor: NetworkMonitor
@@ -53,29 +52,15 @@ class UsedViewModel @Inject constructor(
     // 로컬 기프티콘 목록 변화 감지해서 가져오기
     private fun observeGiftList() {
         viewModelScope.launch(Dispatchers.IO) {
-            giftRepository.getAllGift(2).collectLatest { allGift ->
+            observeUsedGiftsUseCase().collectLatest { allGift ->
                 if (allGift.isNotEmpty()) {
                     val dateFormat = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
 
-                    _giftList.value = allGift.map { gift ->
-                        Gift(
-                            id = gift.id,
-                            uid = gift.uid,
-                            photo = loadImageFromPath(gift.photoPath),
-                            name = gift.name,
-                            brand = gift.brand,
-                            endDt = gift.endDt,
-                            addDt = gift.addDt,
-                            memo = gift.memo,
-                            usedDt = gift.usedDt,
-                            cash = gift.cash,
-                            isFavorite = gift.isFavorite
-                        )
-                    }.sortedWith(
+                    _giftList.value = allGift.sortedWith(
                         compareByDescending<Gift> { dateFormat.parse(it.usedDt)?.time ?: Long.MIN_VALUE }
                             .thenBy { it.brand }
                             .thenBy { it.name }
-                            .thenBy { it.endDt ?: "99991231" }
+                            .thenBy { it.endDt.ifEmpty { "99991231" } }
                     )
                 } else {
                     // 기프티콘 없음

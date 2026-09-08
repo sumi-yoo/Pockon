@@ -11,22 +11,16 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.colorResource
 import androidx.navigation.Navigation
 import com.sumi.pockon.R
-import com.sumi.pockon.data.repository.PreferenceRepository
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainFragment : Fragment() {
-
-    @Inject
-    lateinit var preferenceRepository: PreferenceRepository
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View = ComposeView(requireContext()).apply {
-        val isGuestMode = preferenceRepository.isGuestMode()
         setContent {
             val lightColorScheme = lightColorScheme(
                 primary = colorResource(id = R.color.primary),

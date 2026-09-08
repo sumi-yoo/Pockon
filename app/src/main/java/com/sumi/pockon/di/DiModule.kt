@@ -6,7 +6,6 @@ import androidx.core.content.ContextCompat.getString
 import androidx.room.Room
 import com.sumi.pockon.data.local.brand.BrandDatabase
 import com.sumi.pockon.data.local.gift.GiftDatabase
-import com.sumi.pockon.data.repository.GiftRepository
 import com.sumi.pockon.R
 import com.sumi.pockon.data.remote.brand.KaKaoSearchAPI
 import com.sumi.pockon.data.local.gift.GiftLocalDataSource
@@ -55,17 +54,6 @@ class DiModule {
     @Provides
     fun provideLoginDataSource(auth: FirebaseAuth, @ApplicationContext context: Context): LoginDataSource {
         return LoginDataSource(auth, context)
-    }
-
-    @Singleton
-    @Provides
-    fun provideGiftRepository(
-        giftDataRemoteSource: GiftDataRemoteSource,
-        giftPhotoRemoteDataSource: GiftPhotoRemoteDataSource,
-        giftLocalDataSource: GiftLocalDataSource,
-        @ApplicationContext context: Context
-    ): GiftRepository {
-        return GiftRepository(giftDataRemoteSource, giftPhotoRemoteDataSource, giftLocalDataSource, context)
     }
 
     @Singleton

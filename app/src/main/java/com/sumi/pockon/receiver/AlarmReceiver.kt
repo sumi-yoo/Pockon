@@ -11,11 +11,11 @@ import com.sumi.pockon.MainApplication.Companion.CHANNEL_ID
 import com.sumi.pockon.MainApplication.Companion.GROUP_KEY
 import com.sumi.pockon.R
 import com.sumi.pockon.data.repository.PreferenceRepository
-import com.sumi.pockon.data.repository.GiftRepository
-import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.data.repository.AlarmRepository
+import com.sumi.pockon.domain.usecase.GetGiftCountByEndDateUseCase
+import com.sumi.pockon.domain.usecase.ObserveAllGiftsUseCase
+import com.sumi.pockon.domain.usecase.ObserveGiftUseCase
 import com.sumi.pockon.util.getDdayInt
-import com.sumi.pockon.util.loadImageFromPath
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +28,11 @@ import javax.inject.Inject
 class AlarmReceiver : BroadcastReceiver() {
 
     @Inject
-    lateinit var giftRepository: GiftRepository
+    lateinit var observeAllGiftsUseCase: ObserveAllGiftsUseCase
+    @Inject
+    lateinit var observeGiftUseCase: ObserveGiftUseCase
+    @Inject
+    lateinit var getGiftCountByEndDateUseCase: GetGiftCountByEndDateUseCase
     @Inject
     lateinit var preferenceRepository: PreferenceRepository
     @Inject
@@ -39,24 +43,12 @@ class AlarmReceiver : BroadcastReceiver() {
         if (intent.action == "android.intent.action.BOOT_COMPLETED") {
             CoroutineScope(Dispatchers.IO).launch {
                 val isNotiEndDt = preferenceRepository.isNotiEndDt()
-                giftRepository.getAllGift().take(1).collectLatest { allGift ->
+                observeAllGiftsUseCase().take(1).collectLatest { allGift ->
                     allGift.forEach { gift ->
-                        val tempGift = Gift(
-                            id = gift.id,
-                            uid = gift.uid,
-                            name = gift.name,
-                            brand = gift.brand,
-                            endDt = gift.endDt,
-                            addDt = gift.addDt,
-                            memo = gift.memo,
-                            usedDt = gift.usedDt,
-                            cash = gift.cash,
-                            isFavorite = gift.isFavorite
-                        )
                         // 알림 등록
-                        alarmRepository.cancelAlarm(tempGift.id, preferenceRepository.getNotiEndDtDay())
+                        alarmRepository.cancelAlarm(gift.id, preferenceRepository.getNotiEndDtDay())
                         if (isNotiEndDt) {
-                            alarmRepository.setAlarm(tempGift, preferenceRepository.getNotiEndDtDay(), preferenceRepository.getNotiEndDtTime())
+                            alarmRepository.setAlarm(gift, preferenceRepository.getNotiEndDtDay(), preferenceRepository.getNotiEndDtTime())
                         }
                     }
                 }
@@ -66,21 +58,8 @@ class AlarmReceiver : BroadcastReceiver() {
             val dDay = intent.getIntExtra("dDay", 0)
 
             CoroutineScope(Dispatchers.IO).launch {
-                giftRepository.getGift(giftId).take(1).collectLatest { giftEntity ->
-                    if (giftEntity.id.isEmpty()) return@collectLatest
-                    val gift = Gift(
-                        id = giftEntity.id,
-                        uid = giftEntity.uid,
-                        photo = loadImageFromPath(giftEntity.photoPath),
-                        name = giftEntity.name,
-                        brand = giftEntity.brand,
-                        endDt = giftEntity.endDt,
-                        addDt = giftEntity.addDt,
-                        memo = giftEntity.memo,
-                        usedDt = giftEntity.usedDt,
-                        cash = giftEntity.cash,
-                        isFavorite = giftEntity.isFavorite
-                    )
+                observeGiftUseCase(giftId).take(1).collectLatest { gift ->
+                    if (gift.id.isEmpty()) return@collectLatest
 
                     val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
@@ -121,7 +100,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
                     // 그룹 요약 알림
                     val inboxStyle = NotificationCompat.InboxStyle()
-                    repeat(giftRepository.getGiftCountByEndDate(gift.endDt)) {
+                    repeat(getGiftCountByEndDateUseCase(gift.endDt).getOrDefault(0)) {
                         inboxStyle.addLine("${gift.brand}\n${gift.name}")
                     }
                     val summaryNotification = NotificationCompat.Builder(context, CHANNEL_ID)

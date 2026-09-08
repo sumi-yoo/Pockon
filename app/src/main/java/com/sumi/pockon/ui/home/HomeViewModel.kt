@@ -5,15 +5,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.data.repository.PreferenceRepository
-import com.sumi.pockon.data.local.gift.GiftEntity
-import com.sumi.pockon.data.repository.GiftRepository
 import com.sumi.pockon.data.model.Document
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.data.repository.AlarmRepository
 import com.sumi.pockon.domain.usecase.SyncGiftListUseCase
 import com.sumi.pockon.domain.usecase.SearchNearbyBrandUseCase
+import com.sumi.pockon.domain.usecase.ObserveAllGiftsUseCase
 import com.sumi.pockon.util.NetworkMonitor
-import com.sumi.pockon.util.loadImageFromPath
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -22,7 +20,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val giftRepository: GiftRepository,
+    private val observeAllGiftsUseCase: ObserveAllGiftsUseCase,
     private val syncGiftListUseCase: SyncGiftListUseCase,
     private val searchNearbyBrandUseCase: SearchNearbyBrandUseCase,
     private val preferenceRepository: PreferenceRepository,
@@ -78,29 +76,15 @@ class HomeViewModel @Inject constructor(
     // 로컬 기프티콘 목록 변화 감지해서 가져오기
     private fun observeGiftList() {
         viewModelScope.launch(Dispatchers.IO) {
-            giftRepository.getAllGift(1).collectLatest { allGift ->
+            observeAllGiftsUseCase().collectLatest { allGift ->
                 showGiftList(allGift)
             }
         }
     }
 
-    private fun showGiftList(allGift: List<GiftEntity>) {
+    private fun showGiftList(allGift: List<Gift>) {
         if (allGift.isNotEmpty()) {
-            giftList = allGift.map { gift ->
-                Gift(
-                    id = gift.id,
-                    uid = gift.uid,
-                    photo = loadImageFromPath(gift.photoPath),
-                    name = gift.name,
-                    brand = gift.brand,
-                    endDt = gift.endDt,
-                    addDt = gift.addDt,
-                    memo = gift.memo,
-                    usedDt = gift.usedDt,
-                    cash = gift.cash,
-                    isFavorite = gift.isFavorite
-                )
-            }
+            giftList = allGift
 
             giftList.forEach { gift ->
                 alarmRepository.cancelAlarm(gift.id, preferenceRepository.getNotiEndDtDay())
@@ -115,7 +99,7 @@ class HomeViewModel @Inject constructor(
                 compareBy(
                     { it.brand },
                     { it.name },
-                    { it.endDt ?: "99991231" } // null 또는 빈 값은 가장 마지막으로 정렬
+                    { it.endDt.ifEmpty { "99991231" } }
                 )
             )
             getBrandInfoList() // 브랜드 검색
@@ -148,7 +132,7 @@ class HomeViewModel @Inject constructor(
                 compareBy(
                     { it.brand },
                     { it.name },
-                    { it.endDt ?: "99991231" } // null 또는 빈 값은 가장 마지막으로 정렬
+                    { it.endDt.ifEmpty { "99991231" } }
                 )
             )
             getBrandInfoList()

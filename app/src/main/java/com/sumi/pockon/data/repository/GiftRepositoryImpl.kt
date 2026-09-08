@@ -8,9 +8,12 @@ import com.sumi.pockon.data.remote.gift.GiftDataRemoteSource
 import com.sumi.pockon.data.remote.gift.GiftPhotoRemoteDataSource
 import com.sumi.pockon.domain.repository.GiftRepository
 import com.sumi.pockon.util.saveBitmapToFile
+import com.sumi.pockon.util.loadImageFromPath
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -23,6 +26,40 @@ class GiftRepositoryImpl @Inject constructor(
     private val giftLocalDataSource: GiftLocalDataSource,
     @ApplicationContext private val context: Context
 ) : GiftRepository {
+
+    override fun observeAllGifts(): Flow<List<Gift>> =
+        giftLocalDataSource.getAllGift().map { gifts -> gifts.map { it.toGift() } }
+
+    override fun observeUsedGifts(): Flow<List<Gift>> =
+        giftLocalDataSource.getAllUsedGift().map { gifts -> gifts.map { it.toGift() } }
+
+    override fun observeAvailableGifts(): Flow<List<Gift>> =
+        giftLocalDataSource.getAllNotUsedGift().map { gifts -> gifts.map { it.toGift() } }
+
+    override fun observeGift(id: String): Flow<Gift> = giftLocalDataSource.getGift(id)
+        .map { gift -> gift.toGift() }
+
+    override suspend fun getGiftCountByEndDate(endDt: String): Result<Int> =
+        withContext(Dispatchers.IO) {
+            try {
+                Result.success(giftLocalDataSource.getGiftCountByEndDate(endDt))
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                Result.failure(exception)
+            }
+        }
+
+    override suspend fun clearAllGifts(): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            giftLocalDataSource.deleteAllGift()
+            Result.success(Unit)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Result.failure(exception)
+        }
+    }
 
     override suspend fun syncGifts(uid: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
@@ -152,6 +189,20 @@ class GiftRepositoryImpl @Inject constructor(
         id = id,
         uid = uid,
         photoPath = saveBitmapToFile(photo, context),
+        name = name,
+        brand = brand,
+        endDt = endDt,
+        addDt = addDt,
+        memo = memo,
+        usedDt = usedDt,
+        cash = cash,
+        isFavorite = isFavorite
+    )
+
+    private fun GiftEntity.toGift() = Gift(
+        id = id,
+        uid = uid,
+        photo = loadImageFromPath(photoPath),
         name = name,
         brand = brand,
         endDt = endDt,

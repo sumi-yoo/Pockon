@@ -8,12 +8,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.CameraPosition
-import com.sumi.pockon.data.repository.GiftRepository
 import com.sumi.pockon.data.model.Document
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.domain.usecase.GetCachedBrandsUseCase
+import com.sumi.pockon.domain.usecase.ObserveAvailableGiftsUseCase
 import com.sumi.pockon.util.getDdayInt
-import com.sumi.pockon.util.loadImageFromPath
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -24,7 +23,7 @@ import javax.inject.Inject
 @HiltViewModel
 class MapViewModel @Inject constructor(
     private val getCachedBrandsUseCase: GetCachedBrandsUseCase,
-    private val giftRepository: GiftRepository
+    private val observeAvailableGiftsUseCase: ObserveAvailableGiftsUseCase
 ) : ViewModel() {
 
     private val _displayInfoList = MutableLiveData<List<Pair<Document, List<Gift>>>>(listOf())
@@ -51,23 +50,9 @@ class MapViewModel @Inject constructor(
     // 로컬 기프티콘 목록 변화 감지해서 가져오기
     private fun observeGiftList() {
         viewModelScope.launch(Dispatchers.IO) {
-            giftRepository.getAllGift().take(1).collectLatest { allGift -> // 지도에서는 실시간 갱신 안함 > 1로제한
+            observeAvailableGiftsUseCase().take(1).collectLatest { allGift ->
                 if (allGift.isNotEmpty()) {
-                    giftList = allGift.map { gift ->
-                        Gift(
-                            id = gift.id,
-                            uid = gift.uid,
-                            photo = loadImageFromPath(gift.photoPath),
-                            name = gift.name,
-                            brand = gift.brand,
-                            endDt = gift.endDt,
-                            addDt = gift.addDt,
-                            memo = gift.memo,
-                            usedDt = gift.usedDt,
-                            cash = gift.cash,
-                            isFavorite = gift.isFavorite
-                        )
-                    }
+                    giftList = allGift
                     getAllBrands() // 키워드별 브랜드 위치 정보 가져오기(로컬)
                 } else {
                     // 기프티콘 없음
@@ -109,7 +94,7 @@ class MapViewModel @Inject constructor(
                 compareBy(
                     { it.brand },     // 브랜드명 순
                     { it.name },      // 상품명 순
-                    { it.endDt ?: "99991231" } // null 또는 빈 값은 가장 마지막으로 정렬
+                    { it.endDt.ifEmpty { "99991231" } }
                 )
             )
             markerInGiftList.add(Pair(document, sortedList))

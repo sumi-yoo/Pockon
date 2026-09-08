@@ -9,13 +9,12 @@ import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.data.repository.PreferenceRepository
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.data.repository.AlarmRepository
-import com.sumi.pockon.data.repository.GiftRepository
 import com.sumi.pockon.domain.usecase.DeleteGiftUseCase
 import com.sumi.pockon.domain.usecase.DeleteGiftsUseCase
 import com.sumi.pockon.domain.usecase.SyncGiftListUseCase
 import com.sumi.pockon.domain.usecase.UpdateGiftUseCase
+import com.sumi.pockon.domain.usecase.ObserveAvailableGiftsUseCase
 import com.sumi.pockon.util.NetworkMonitor
-import com.sumi.pockon.util.loadImageFromPath
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -26,11 +25,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
-import kotlin.collections.ArrayList
 
 @HiltViewModel
 class ListViewModel @Inject constructor(
-    private val giftRepository: GiftRepository,
+    private val observeAvailableGiftsUseCase: ObserveAvailableGiftsUseCase,
     private val syncGiftListUseCase: SyncGiftListUseCase,
     private val updateGiftUseCase: UpdateGiftUseCase,
     private val deleteGiftUseCase: DeleteGiftUseCase,
@@ -89,26 +87,9 @@ class ListViewModel @Inject constructor(
     // 로컬 기프티콘 목록 변화 감지해서 가져오기
     private fun observeGiftList() {
         viewModelScope.launch(Dispatchers.IO) {
-            giftRepository.getAllGift().collectLatest { allGift ->
+            observeAvailableGiftsUseCase().collectLatest { allGift ->
                 if (allGift.isNotEmpty()) {
-                    val tempList = ArrayList<Gift>()
-                    allGift.forEach { gift ->
-                        val tempGift = Gift(
-                            id = gift.id,
-                            uid = gift.uid,
-                            photo = loadImageFromPath(gift.photoPath),
-                            name = gift.name,
-                            brand = gift.brand,
-                            endDt = gift.endDt,
-                            addDt = gift.addDt,
-                            memo = gift.memo,
-                            usedDt = gift.usedDt,
-                            cash = gift.cash,
-                            isFavorite = gift.isFavorite
-                        )
-                        tempList.add(tempGift)
-                    }
-                    _giftList.value = tempList
+                    _giftList.value = allGift
                     _copyGiftList.value = _giftList.value
                     sortChips()
                     filterList()
@@ -230,7 +211,7 @@ class ListViewModel @Inject constructor(
                     compareBy(
                         { it.brand },
                         { it.name },
-                        { it.endDt ?: "99991231" } // null 또는 빈 값은 가장 마지막으로 정렬
+                        { it.endDt.ifEmpty { "99991231" } }
                     )
                 )
             }

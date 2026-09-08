@@ -11,8 +11,8 @@ import com.sumi.pockon.domain.usecase.GetSignInIntentUseCase
 import com.sumi.pockon.domain.usecase.SignInUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import java.util.UUID
 import javax.inject.Inject
 
@@ -24,8 +24,8 @@ class LoginViewModel @Inject constructor(
     private val preferenceRepository: PreferenceRepository
 ) : ViewModel() {
 
-    private val eventChannel = Channel<LoginEvent>(Channel.BUFFERED)
-    val events = eventChannel.receiveAsFlow()
+    private val _events = MutableSharedFlow<LoginEvent>()
+    val events: SharedFlow<LoginEvent> = _events
 
     private val _isLogin = MutableLiveData(false)
     val isLogin: LiveData<Boolean> = _isLogin
@@ -54,7 +54,7 @@ class LoginViewModel @Inject constructor(
     fun requestSignInIntent() {
         viewModelScope.launch {
             getSignInIntentUseCase(preferenceRepository.getEmail()).onSuccess { intent ->
-                eventChannel.send(LoginEvent.LaunchSignIn(intent))
+                _events.emit(LoginEvent.LaunchSignIn(intent))
             }.onFailure {
                 _isFail.value = true
             }
@@ -97,7 +97,7 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             getGoogleCredentialUseCase().onFailure {
                 _isLoading.postValue(false)
-                eventChannel.send(LoginEvent.RequestLegacySignIn)
+                _events.emit(LoginEvent.RequestLegacySignIn)
             }.onSuccess { credential ->
                 signInUseCase(credential.idToken).onSuccess { uid ->
                     isPinUse = true
