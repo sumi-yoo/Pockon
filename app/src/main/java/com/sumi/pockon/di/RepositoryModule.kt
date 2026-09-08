@@ -2,7 +2,9 @@ package com.sumi.pockon.di
 
 import com.sumi.pockon.data.repository.GiftRepositoryImpl
 import com.sumi.pockon.data.repository.AlarmRepositoryImpl
+import com.sumi.pockon.data.repository.AppPreferencesRepositoryImpl
 import com.sumi.pockon.data.repository.LoginRepository
+import com.sumi.pockon.data.repository.NotificationSettingsRepositoryImpl
 import com.sumi.pockon.data.repository.PinRepositoryImpl
 import com.sumi.pockon.data.repository.UserSessionRepositoryImpl
 import com.sumi.pockon.data.repository.BrandRepositoryImpl
@@ -10,6 +12,8 @@ import com.sumi.pockon.domain.repository.BrandRepository
 import com.sumi.pockon.domain.repository.GiftRepository
 import com.sumi.pockon.domain.repository.AuthRepository
 import com.sumi.pockon.domain.repository.AlarmRepository
+import com.sumi.pockon.domain.repository.AppPreferencesRepository
+import com.sumi.pockon.domain.repository.NotificationSettingsRepository
 import com.sumi.pockon.domain.repository.PinRepository
 import com.sumi.pockon.domain.repository.UserSessionRepository
 import dagger.Binds
@@ -31,6 +35,16 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindAlarmRepository(alarmRepositoryImpl: AlarmRepositoryImpl): AlarmRepository
+
+    @Binds
+    abstract fun bindAppPreferencesRepository(
+        appPreferencesRepositoryImpl: AppPreferencesRepositoryImpl
+    ): AppPreferencesRepository
+
+    @Binds
+    abstract fun bindNotificationSettingsRepository(
+        notificationSettingsRepositoryImpl: NotificationSettingsRepositoryImpl
+    ): NotificationSettingsRepository
 
     @Binds
     abstract fun bindAuthRepository(loginRepository: LoginRepository): AuthRepository

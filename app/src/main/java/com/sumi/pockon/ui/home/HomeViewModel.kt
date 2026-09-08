@@ -4,7 +4,10 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sumi.pockon.data.repository.PreferenceRepository
+import com.sumi.pockon.domain.usecase.GetNotificationSettingsUseCase
+import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
+import com.sumi.pockon.domain.usecase.IsInitialGiftSyncRequiredUseCase
+import com.sumi.pockon.domain.usecase.MarkInitialGiftSyncCompletedUseCase
 import com.sumi.pockon.data.model.Document
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
@@ -24,7 +27,10 @@ class HomeViewModel @Inject constructor(
     private val observeAllGiftsUseCase: ObserveAllGiftsUseCase,
     private val syncGiftListUseCase: SyncGiftListUseCase,
     private val searchNearbyBrandUseCase: SearchNearbyBrandUseCase,
-    private val preferenceRepository: PreferenceRepository,
+    private val getUserSessionUseCase: GetUserSessionUseCase,
+    private val isInitialGiftSyncRequiredUseCase: IsInitialGiftSyncRequiredUseCase,
+    private val markInitialGiftSyncCompletedUseCase: MarkInitialGiftSyncCompletedUseCase,
+    private val getNotificationSettingsUseCase: GetNotificationSettingsUseCase,
     private val cancelGiftAlarmUseCase: CancelGiftAlarmUseCase,
     private val scheduleGiftAlarmUseCase: ScheduleGiftAlarmUseCase,
     private val networkMonitor: NetworkMonitor
@@ -33,10 +39,11 @@ class HomeViewModel @Inject constructor(
     private var longitude: Double? = null
     private var latitude: Double? = null
 
-    private val uid = preferenceRepository.getUid()
-    private val isGuestMode = preferenceRepository.isGuestMode()
-    private val isFirstLogin = preferenceRepository.isFirstLogin()
-    private val isNotiEndDt = preferenceRepository.isNotiEndDt()
+    private val session = getUserSessionUseCase()
+    private val uid = session.uid
+    private val isGuestMode = session.isGuest
+    private val isFirstLogin = isInitialGiftSyncRequiredUseCase()
+    private val notificationSettings = getNotificationSettingsUseCase()
 
     private var giftList: List<Gift> = listOf()
 
@@ -67,7 +74,7 @@ class HomeViewModel @Inject constructor(
             try {
                 val result = syncGiftListUseCase(uid)
                 if (result.isSuccess) {
-                    preferenceRepository.saveIsFirstLogin(false)
+                    markInitialGiftSyncCompletedUseCase()
                 }
             } finally {
                 _isShowIndicator.value = false
@@ -89,10 +96,14 @@ class HomeViewModel @Inject constructor(
             giftList = allGift
 
             giftList.forEach { gift ->
-                cancelGiftAlarmUseCase(gift.id, preferenceRepository.getNotiEndDtDay())
-                if (isNotiEndDt && gift.usedDt.isEmpty()) {
+                cancelGiftAlarmUseCase(gift.id, notificationSettings.daysBeforeExpiry)
+                if (notificationSettings.isEnabled && gift.usedDt.isEmpty()) {
                     // 알림 등록
-                    scheduleGiftAlarmUseCase(gift, preferenceRepository.getNotiEndDtDay(), preferenceRepository.getNotiEndDtTime())
+                    scheduleGiftAlarmUseCase(
+                        gift,
+                        notificationSettings.daysBeforeExpiry,
+                        notificationSettings.hour to notificationSettings.minute
+                    )
                 }
             }
 

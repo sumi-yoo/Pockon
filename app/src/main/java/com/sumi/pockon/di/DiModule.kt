@@ -23,7 +23,6 @@ import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import com.sumi.pockon.data.local.alarm.AlarmDataSource
 import com.sumi.pockon.data.local.preference.PreferenceLocalDataSource
-import com.sumi.pockon.data.repository.PreferenceRepository
 import com.sumi.pockon.util.NetworkMonitor
 import dagger.Module
 import dagger.Provides
@@ -126,12 +125,6 @@ class DiModule {
     @Singleton
     @Provides
     fun provideAlarmDataSource(@ApplicationContext context: Context): AlarmDataSource = AlarmDataSource(context)
-
-    @Singleton
-    @Provides
-    fun providePreferenceRepository(preferenceLocalDataSource: PreferenceLocalDataSource): PreferenceRepository {
-        return PreferenceRepository(preferenceLocalDataSource)
-    }
 
     @Singleton
     @Provides

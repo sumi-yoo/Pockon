@@ -6,7 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.R
-import com.sumi.pockon.data.repository.PreferenceRepository
+import com.sumi.pockon.domain.usecase.GetNotificationSettingsUseCase
+import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
 import com.sumi.pockon.domain.usecase.UpdateGiftFavoriteUseCase
@@ -30,14 +31,15 @@ class DetailViewModel @Inject constructor(
     private val updateGiftUseCase: UpdateGiftUseCase,
     private val updateGiftFavoriteUseCase: UpdateGiftFavoriteUseCase,
     private val cancelGiftAlarmUseCase: CancelGiftAlarmUseCase,
-    private val preferenceRepository: PreferenceRepository,
+    private val getNotificationSettingsUseCase: GetNotificationSettingsUseCase,
+    private val getUserSessionUseCase: GetUserSessionUseCase,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<DetailEvent>()
     val events: SharedFlow<DetailEvent> = _events
 
-    private val isGuestMode = preferenceRepository.isGuestMode()
+    private val isGuestMode = getUserSessionUseCase().isGuest
 
     private val _gift = mutableStateOf(Gift())
     val gift: State<Gift> = _gift
@@ -209,7 +211,7 @@ class DetailViewModel @Inject constructor(
                 if (result.isSuccess) {
                     cancelGiftAlarmUseCase(
                         updateGift.id,
-                        preferenceRepository.getNotiEndDtDay()
+                        getNotificationSettingsUseCase().daysBeforeExpiry
                     )
                     _gift.value = updateGift
                     _isEdit.value = false

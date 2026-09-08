@@ -4,7 +4,6 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sumi.pockon.data.repository.PreferenceRepository
 import com.sumi.pockon.domain.usecase.DeleteAccountUseCase
 import com.sumi.pockon.domain.usecase.GetGoogleCredentialUseCase
 import com.sumi.pockon.domain.usecase.GetSignInIntentUseCase
@@ -19,6 +18,8 @@ import com.sumi.pockon.domain.usecase.IsPinEnabledUseCase
 import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
 import com.sumi.pockon.domain.usecase.ClearUserSessionUseCase
 import com.sumi.pockon.domain.usecase.ClearBrandCacheUseCase
+import com.sumi.pockon.domain.usecase.GetNotificationSettingsUseCase
+import com.sumi.pockon.domain.usecase.SaveNotificationSettingsUseCase
 import com.sumi.pockon.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -40,7 +41,8 @@ class SettingsViewModel @Inject constructor(
     private val observeAllGiftsUseCase: ObserveAllGiftsUseCase,
     private val clearAllGiftsUseCase: ClearAllGiftsUseCase,
     private val clearBrandCacheUseCase: ClearBrandCacheUseCase,
-    private val preferenceRepository: PreferenceRepository,
+    private val getNotificationSettingsUseCase: GetNotificationSettingsUseCase,
+    private val saveNotificationSettingsUseCase: SaveNotificationSettingsUseCase,
     private val cancelGiftAlarmUseCase: CancelGiftAlarmUseCase,
     private val scheduleGiftAlarmUseCase: ScheduleGiftAlarmUseCase,
     private val disablePinUseCase: DisablePinUseCase,
@@ -56,30 +58,34 @@ class SettingsViewModel @Inject constructor(
     private val session = getUserSessionUseCase()
     private var uid = session.uid
     private var isAuthPin = isPinEnabledUseCase()
-    private var isNotiEndDt = preferenceRepository.isNotiEndDt()
+    private var notificationSettings = getNotificationSettingsUseCase()
     private var isGuestMode = session.isGuest
-    private var profileImage = preferenceRepository.getProfileImage()
-    private var name = preferenceRepository.getName()
+    private var profileImage = session.profileImage
+    private var name = session.name
     private var email = session.email
 
     private val _isShowNoInternetDialog = mutableStateOf(false)
     val isShowNoInternetDialog: State<Boolean> = _isShowNoInternetDialog
 
-    fun getIsNotiEndDt() = isNotiEndDt
+    fun getIsNotiEndDt() = notificationSettings.isEnabled
 
     fun getIsAuthPin() = isAuthPin
 
     fun onOffNotiEndDt(flag: Boolean) {
-        preferenceRepository.onOffNotiEndDt(flag)
-        isNotiEndDt = flag
+        notificationSettings = notificationSettings.copy(isEnabled = flag)
+        saveNotificationSettingsUseCase(notificationSettings)
 
         viewModelScope.launch(Dispatchers.IO) {
             observeAllGiftsUseCase().take(1).collectLatest { allGift ->
                 allGift.forEach { gift ->
-                    cancelGiftAlarmUseCase(gift.id, preferenceRepository.getNotiEndDtDay())
-                    if (isNotiEndDt && gift.usedDt.isEmpty()) {
+                    cancelGiftAlarmUseCase(gift.id, notificationSettings.daysBeforeExpiry)
+                    if (notificationSettings.isEnabled && gift.usedDt.isEmpty()) {
                         // 알림 등록
-                        scheduleGiftAlarmUseCase(gift, preferenceRepository.getNotiEndDtDay(), preferenceRepository.getNotiEndDtTime())
+                        scheduleGiftAlarmUseCase(
+                            gift,
+                            notificationSettings.daysBeforeExpiry,
+                            notificationSettings.hour to notificationSettings.minute
+                        )
                     }
                 }
             }
@@ -97,7 +103,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             observeAllGiftsUseCase().take(1).collectLatest { gifts ->
                 gifts.forEach { gift ->
-                    cancelGiftAlarmUseCase(gift.id, preferenceRepository.getNotiEndDtDay())
+                    cancelGiftAlarmUseCase(gift.id, notificationSettings.daysBeforeExpiry)
                 }
                 clearAllGiftsUseCase()
                 clearBrandCacheUseCase()
@@ -147,7 +153,9 @@ class SettingsViewModel @Inject constructor(
                 return@launch
             }
 
-            gifts.forEach { gift -> cancelGiftAlarmUseCase(gift.id, preferenceRepository.getNotiEndDtDay()) }
+            gifts.forEach { gift ->
+                cancelGiftAlarmUseCase(gift.id, notificationSettings.daysBeforeExpiry)
+            }
             clearAllGiftsUseCase()
             clearBrandCacheUseCase()
             if (!isGuestMode) signOutUseCase()

@@ -9,6 +9,8 @@ class UserSessionRepositoryImpl @Inject constructor(
 ) : UserSessionRepository {
     override fun uid() = localDataSource.getUid()
     override fun email() = localDataSource.getEmail()
+    override fun name() = localDataSource.getName()
+    override fun profileImage() = localDataSource.getProfileImage()
     override fun isGuest() = localDataSource.isGuestMode()
     override fun save(uid: String, email: String, name: String?, profileImage: String?, isGuest: Boolean) {
         localDataSource.saveUid(uid)

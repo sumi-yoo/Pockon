@@ -3,24 +3,30 @@ package com.sumi.pockon.ui.main
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
-import com.sumi.pockon.data.repository.PreferenceRepository
+import com.sumi.pockon.domain.usecase.GetNotificationSettingsUseCase
+import com.sumi.pockon.domain.usecase.IsNotificationPermissionRationaleShownUseCase
+import com.sumi.pockon.domain.usecase.MarkNotificationPermissionRationaleShownUseCase
+import com.sumi.pockon.domain.usecase.SaveNotificationSettingsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val preferenceRepository: PreferenceRepository,
+    private val getNotificationSettingsUseCase: GetNotificationSettingsUseCase,
+    private val saveNotificationSettingsUseCase: SaveNotificationSettingsUseCase,
+    private val isNotificationPermissionRationaleShownUseCase: IsNotificationPermissionRationaleShownUseCase,
+    private val markNotificationPermissionRationaleShownUseCase: MarkNotificationPermissionRationaleShownUseCase,
 ) : ViewModel() {
 
-    private val _isPermRationale = mutableStateOf(preferenceRepository.isPermRationale())
+    private val _isPermRationale = mutableStateOf(isNotificationPermissionRationaleShownUseCase())
     val isPermRationale: State<Boolean> = _isPermRationale
 
     fun disableNotification() {
-        preferenceRepository.onOffNotiEndDt(false)
+        saveNotificationSettingsUseCase(getNotificationSettingsUseCase().copy(isEnabled = false))
     }
 
     fun saveIsPermRationale() {
-        if (!_isPermRationale.value) preferenceRepository.saveIsPermRationale(true)
+        if (!_isPermRationale.value) markNotificationPermissionRationaleShownUseCase()
         _isPermRationale.value = true
     }
 }

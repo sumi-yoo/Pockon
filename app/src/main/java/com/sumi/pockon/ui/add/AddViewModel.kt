@@ -8,7 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
 import com.sumi.pockon.R
-import com.sumi.pockon.data.repository.PreferenceRepository
+import com.sumi.pockon.domain.usecase.GetNotificationSettingsUseCase
+import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.domain.usecase.AddGiftUseCase
 import com.sumi.pockon.util.GifticonParser
@@ -26,16 +27,16 @@ import javax.inject.Inject
 @HiltViewModel
 class AddViewModel @Inject constructor(
     private val addGiftUseCase: AddGiftUseCase,
-    private val preferenceRepository: PreferenceRepository,
+    private val getUserSessionUseCase: GetUserSessionUseCase,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<AddGiftEvent>()
     val events: SharedFlow<AddGiftEvent> = _events
 
-    private val uid = preferenceRepository.getUid()
-    private val isNotiEndDt = preferenceRepository.isNotiEndDt()
-    private val isGuestMode = preferenceRepository.isGuestMode()
+    private val session = getUserSessionUseCase()
+    private val uid = session.uid
+    private val isGuestMode = session.isGuest
 
     private val _isShowDatePicker = mutableStateOf(false)
     val isShowDatePicker: State<Boolean> = _isShowDatePicker

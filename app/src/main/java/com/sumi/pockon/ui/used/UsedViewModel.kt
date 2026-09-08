@@ -4,7 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sumi.pockon.data.repository.PreferenceRepository
+import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.domain.usecase.DeleteGiftsUseCase
 import com.sumi.pockon.domain.usecase.ObserveUsedGiftsUseCase
@@ -23,15 +23,16 @@ import javax.inject.Inject
 class UsedViewModel @Inject constructor(
     private val observeUsedGiftsUseCase: ObserveUsedGiftsUseCase,
     private val deleteGiftsUseCase: DeleteGiftsUseCase,
-    private val preferenceRepository: PreferenceRepository,
+    private val getUserSessionUseCase: GetUserSessionUseCase,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<UsedEvent>(extraBufferCapacity = 1)
     val events: SharedFlow<UsedEvent> = _events
 
-    private var uid = preferenceRepository.getUid()
-    private var isGuestMode = preferenceRepository.isGuestMode()
+    private val session = getUserSessionUseCase()
+    private var uid = session.uid
+    private var isGuestMode = session.isGuest
 
     private val _giftList = mutableStateOf<List<Gift>>(listOf())
     val giftList: State<List<Gift>> = _giftList

@@ -10,8 +10,8 @@ import com.sumi.pockon.ui.main.MainActivity
 import com.sumi.pockon.MainApplication.Companion.CHANNEL_ID
 import com.sumi.pockon.MainApplication.Companion.GROUP_KEY
 import com.sumi.pockon.R
-import com.sumi.pockon.data.repository.PreferenceRepository
 import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
+import com.sumi.pockon.domain.usecase.GetNotificationSettingsUseCase
 import com.sumi.pockon.domain.usecase.ScheduleGiftAlarmUseCase
 import com.sumi.pockon.domain.usecase.GetGiftCountByEndDateUseCase
 import com.sumi.pockon.domain.usecase.ObserveAllGiftsUseCase
@@ -35,7 +35,7 @@ class AlarmReceiver : BroadcastReceiver() {
     @Inject
     lateinit var getGiftCountByEndDateUseCase: GetGiftCountByEndDateUseCase
     @Inject
-    lateinit var preferenceRepository: PreferenceRepository
+    lateinit var getNotificationSettingsUseCase: GetNotificationSettingsUseCase
     @Inject
     lateinit var cancelGiftAlarmUseCase: CancelGiftAlarmUseCase
     @Inject
@@ -45,13 +45,17 @@ class AlarmReceiver : BroadcastReceiver() {
         // 재부팅 후 알람 매니저 재등록
         if (intent.action == "android.intent.action.BOOT_COMPLETED") {
             CoroutineScope(Dispatchers.IO).launch {
-                val isNotiEndDt = preferenceRepository.isNotiEndDt()
+                val notificationSettings = getNotificationSettingsUseCase()
                 observeAllGiftsUseCase().take(1).collectLatest { allGift ->
                     allGift.forEach { gift ->
                         // 알림 등록
-                        cancelGiftAlarmUseCase(gift.id, preferenceRepository.getNotiEndDtDay())
-                        if (isNotiEndDt) {
-                            scheduleGiftAlarmUseCase(gift, preferenceRepository.getNotiEndDtDay(), preferenceRepository.getNotiEndDtTime())
+                        cancelGiftAlarmUseCase(gift.id, notificationSettings.daysBeforeExpiry)
+                        if (notificationSettings.isEnabled) {
+                            scheduleGiftAlarmUseCase(
+                                gift,
+                                notificationSettings.daysBeforeExpiry,
+                                notificationSettings.hour to notificationSettings.minute
+                            )
                         }
                     }
                 }

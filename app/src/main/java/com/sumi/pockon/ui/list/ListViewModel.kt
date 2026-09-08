@@ -6,7 +6,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sumi.pockon.data.repository.PreferenceRepository
+import com.sumi.pockon.domain.usecase.GetNotificationSettingsUseCase
+import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
 import com.sumi.pockon.domain.usecase.DeleteGiftUseCase
@@ -33,7 +34,8 @@ class ListViewModel @Inject constructor(
     private val updateGiftUseCase: UpdateGiftUseCase,
     private val deleteGiftUseCase: DeleteGiftUseCase,
     private val deleteGiftsUseCase: DeleteGiftsUseCase,
-    private val preferenceRepository: PreferenceRepository,
+    private val getNotificationSettingsUseCase: GetNotificationSettingsUseCase,
+    private val getUserSessionUseCase: GetUserSessionUseCase,
     private val cancelGiftAlarmUseCase: CancelGiftAlarmUseCase,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
@@ -41,8 +43,9 @@ class ListViewModel @Inject constructor(
     private val _events = MutableSharedFlow<ListEvent>(extraBufferCapacity = 1)
     val events: SharedFlow<ListEvent> = _events
 
-    private var uid = preferenceRepository.getUid()
-    private var isGuestMode = preferenceRepository.isGuestMode()
+    private val session = getUserSessionUseCase()
+    private var uid = session.uid
+    private var isGuestMode = session.isGuest
     private var isRefresh = false
     private var removeGift: Gift? = null
 
@@ -242,7 +245,7 @@ class ListViewModel @Inject constructor(
                 shouldUploadPhoto = false
             )
             if (result.isSuccess) {
-                cancelGiftAlarmUseCase(gift.id, preferenceRepository.getNotiEndDtDay())
+                cancelGiftAlarmUseCase(gift.id, getNotificationSettingsUseCase().daysBeforeExpiry)
             } else {
                 _events.emit(ListEvent.GiftUseFailed)
             }
@@ -268,7 +271,7 @@ class ListViewModel @Inject constructor(
         viewModelScope.launch {
             val result = deleteGiftUseCase(isGuestMode, uid, id)
             if (result.isSuccess) {
-                cancelGiftAlarmUseCase(gift.id, preferenceRepository.getNotiEndDtDay())
+                cancelGiftAlarmUseCase(gift.id, getNotificationSettingsUseCase().daysBeforeExpiry)
                 _events.emit(ListEvent.GiftDeleted(isBulk = false))
             } else {
                 _events.emit(ListEvent.GiftDeleteFailed)
@@ -324,7 +327,7 @@ class ListViewModel @Inject constructor(
             val result = deleteGiftsUseCase(isGuestMode, uid, ids)
             if (result.isSuccess) {
                 ids.forEach { id ->
-                    cancelGiftAlarmUseCase(id, preferenceRepository.getNotiEndDtDay())
+                    cancelGiftAlarmUseCase(id, getNotificationSettingsUseCase().daysBeforeExpiry)
                 }
                 _events.emit(ListEvent.GiftDeleted(isBulk = true))
             } else {
