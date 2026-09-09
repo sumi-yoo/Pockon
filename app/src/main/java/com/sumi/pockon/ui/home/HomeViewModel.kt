@@ -8,8 +8,8 @@ import com.sumi.pockon.domain.usecase.GetNotificationSettingsUseCase
 import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
 import com.sumi.pockon.domain.usecase.IsInitialGiftSyncRequiredUseCase
 import com.sumi.pockon.domain.usecase.MarkInitialGiftSyncCompletedUseCase
-import com.sumi.pockon.data.model.Document
-import com.sumi.pockon.data.model.Gift
+import com.sumi.pockon.domain.model.BrandLocation
+import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
 import com.sumi.pockon.domain.usecase.ScheduleGiftAlarmUseCase
 import com.sumi.pockon.domain.usecase.SyncGiftListUseCase
@@ -47,8 +47,8 @@ class HomeViewModel @Inject constructor(
 
     private var giftList: List<Gift> = listOf()
 
-    private val _nearGiftList = mutableStateOf<List<Pair<Gift, Document>>>(listOf())
-    val nearGiftList: State<List<Pair<Gift, Document>>> = _nearGiftList
+    private val _nearGiftList = mutableStateOf<List<Pair<Gift, BrandLocation>>>(listOf())
+    val nearGiftList: State<List<Pair<Gift, BrandLocation>>> = _nearGiftList
 
     private val _favoriteGiftList = mutableStateOf<List<Gift>>(listOf())
     val favoriteGiftList: State<List<Gift>> = _favoriteGiftList

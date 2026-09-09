@@ -11,8 +11,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.sumi.pockon.databinding.FragmentMapBinding
-import com.sumi.pockon.data.model.Document
-import com.sumi.pockon.data.model.Gift
+import com.sumi.pockon.domain.model.BrandLocation
+import com.sumi.pockon.domain.model.Gift
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.CameraAnimation
 import com.naver.maps.map.CameraUpdate
@@ -79,7 +79,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         }
     }
 
-    private fun renderMarkers(list: List<Pair<Document, List<Gift>>>) {
+    private fun renderMarkers(list: List<Pair<BrandLocation, List<Gift>>>) {
         markerList.values.forEach { it.map = null }
         markerList.clear()
 
@@ -96,7 +96,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             marker.tag = info.first
             marker.icon = MarkerIcons.BLACK
             marker.onClickListener = Overlay.OnClickListener { overlay ->
-                val document = overlay.tag as Document
+                val document = overlay.tag as BrandLocation
                 markerList.forEach { (id, marker) ->
                     if (id == document.id) {
                         // 뷰페이저 셋팅

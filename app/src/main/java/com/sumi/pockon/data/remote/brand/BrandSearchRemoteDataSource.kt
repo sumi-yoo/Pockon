@@ -1,7 +1,6 @@
 package com.sumi.pockon.data.remote.brand
 
 import com.sumi.pockon.BuildConfig
-import com.sumi.pockon.data.model.Brands
 import javax.inject.Inject
 
 class BrandSearchRemoteDataSource @Inject constructor(
@@ -14,7 +13,7 @@ class BrandSearchRemoteDataSource @Inject constructor(
         longitude: Double,
         latitude: Double,
         brandName: String
-    ): Brands = api.searchBrand(
+    ): BrandSearchDto = api.searchBrand(
         authorization = REST_API_KEY,
         query = brandName,
         x = longitude.toString(),

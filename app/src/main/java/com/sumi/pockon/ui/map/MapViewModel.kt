@@ -6,8 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.CameraPosition
-import com.sumi.pockon.data.model.Document
-import com.sumi.pockon.data.model.Gift
+import com.sumi.pockon.domain.model.BrandLocation
+import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.domain.usecase.GetCachedBrandsUseCase
 import com.sumi.pockon.domain.usecase.ObserveAvailableGiftsUseCase
 import com.sumi.pockon.util.getDdayInt
@@ -26,8 +26,8 @@ class MapViewModel @Inject constructor(
     private val observeAvailableGiftsUseCase: ObserveAvailableGiftsUseCase
 ) : ViewModel() {
 
-    private val _displayInfoList = MutableStateFlow<List<Pair<Document, List<Gift>>>>(emptyList())
-    val displayInfoList: StateFlow<List<Pair<Document, List<Gift>>>> = _displayInfoList.asStateFlow()
+    private val _displayInfoList = MutableStateFlow<List<Pair<BrandLocation, List<Gift>>>>(emptyList())
+    val displayInfoList: StateFlow<List<Pair<BrandLocation, List<Gift>>>> = _displayInfoList.asStateFlow()
     private val _cameraPosition = mutableStateOf<CameraPosition?>(null)
     val cameraPosition: State<CameraPosition?> = _cameraPosition
 
@@ -38,8 +38,8 @@ class MapViewModel @Inject constructor(
     val selectedMarkerIndex: State<Int?> = _selectedMarkerIndex
 
     private var giftList = listOf<Gift>()
-    private var brandInfoList: Map<String, List<Document>> = emptyMap()
-    private var nearestDoc: Document? = null
+    private var brandInfoList: Map<String, List<BrandLocation>> = emptyMap()
+    private var nearestDoc: BrandLocation? = null
     private var pageIndex = 0
     private var isInitialCameraMoved = false
 
@@ -71,7 +71,7 @@ class MapViewModel @Inject constructor(
 
     // 브랜드별 사용 가능 기프티콘 매핑하기
     private fun mappingInfo() {
-        val mappingList = mutableMapOf<Document, MutableSet<String>>()
+        val mappingList = mutableMapOf<BrandLocation, MutableSet<String>>()
         nearestDoc = null
 
         brandInfoList.forEach { (keyword, documents) ->
@@ -85,7 +85,7 @@ class MapViewModel @Inject constructor(
             }
         }
 
-        val markerInGiftList = ArrayList<Pair<Document, List<Gift>>>()
+        val markerInGiftList = ArrayList<Pair<BrandLocation, List<Gift>>>()
         mappingList.forEach { (document, keywordList) ->
             val filterGiftList = giftList.filter { keywordList.contains(it.brand) && getDdayInt(it.endDt) >= 0 }
             val sortedList = filterGiftList.sortedWith(

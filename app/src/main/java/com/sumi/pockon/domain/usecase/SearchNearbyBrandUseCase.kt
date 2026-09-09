@@ -1,7 +1,7 @@
 package com.sumi.pockon.domain.usecase
 
-import com.sumi.pockon.data.model.Document
-import com.sumi.pockon.data.model.Gift
+import com.sumi.pockon.domain.model.BrandLocation
+import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.domain.repository.BrandRepository
 import com.sumi.pockon.util.getDdayInt
 import javax.inject.Inject
@@ -13,7 +13,7 @@ class SearchNearbyBrandUseCase @Inject constructor(
         gifts: List<Gift>,
         longitude: Double,
         latitude: Double
-    ): Result<List<Pair<Gift, Document>>> {
+    ): Result<List<Pair<Gift, BrandLocation>>> {
         val availableGifts = gifts.filter { it.usedDt.isEmpty() && getDdayInt(it.endDt) >= 0 }
         val brandNames = availableGifts.map(Gift::brand).distinct()
         if (brandNames.isEmpty()) return Result.success(emptyList())

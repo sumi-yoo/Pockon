@@ -84,7 +84,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.sumi.pockon.data.model.Gift
+import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.util.formatString
 import com.sumi.pockon.util.getDday
 import com.google.accompanist.swiperefresh.SwipeRefresh

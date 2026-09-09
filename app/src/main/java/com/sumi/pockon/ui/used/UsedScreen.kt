@@ -64,7 +64,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.sumi.pockon.R
-import com.sumi.pockon.data.model.Gift
+import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.ui.loading.LoadingScreen
 import com.sumi.pockon.ui.detail.UsedStamp
 import com.sumi.pockon.ui.list.ConfirmDialog

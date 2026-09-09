@@ -4,7 +4,6 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
-import com.sumi.pockon.data.model.Document
 import com.google.gson.Gson
 
 @Database(
@@ -20,12 +19,12 @@ abstract class BrandDatabase : RoomDatabase() {
 class DateListConverters {
 
     @TypeConverter
-    fun listToJson(value: List<Document>?): String? {
+    fun listToJson(value: List<BrandLocationLocal>?): String? {
         return Gson().toJson(value)
     }
 
     @TypeConverter
-    fun jsonToList(value: String): List<Document>? {
-        return Gson().fromJson(value, Array<Document>::class.java)?.toList()
+    fun jsonToList(value: String): List<BrandLocationLocal>? {
+        return Gson().fromJson(value, Array<BrandLocationLocal>::class.java)?.toList()
     }
 }

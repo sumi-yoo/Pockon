@@ -56,8 +56,8 @@ import com.naver.maps.map.overlay.CircleOverlay
 import com.naver.maps.map.overlay.Marker
 import com.naver.maps.map.util.MarkerIcons
 import com.sumi.pockon.R
-import com.sumi.pockon.data.model.Document
-import com.sumi.pockon.data.model.Gift
+import com.sumi.pockon.domain.model.BrandLocation
+import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.ui.detail.DetailScreen
 import com.sumi.pockon.ui.home.checkLocationPermission
 import com.sumi.pockon.ui.list.GiftItem
@@ -148,7 +148,7 @@ fun MapScreen(onBack: () -> Unit, onDetail: (String) -> Unit) {
 fun NaverMapWithLiveLocation(
     fusedLocationClient: FusedLocationProviderClient,
     mapViewModel: MapViewModel,
-    displayInfoList: List<Pair<Document, List<Gift>>>,
+    displayInfoList: List<Pair<BrandLocation, List<Gift>>>,
     isTopScroll: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
@@ -247,7 +247,7 @@ fun NaverMapWithLiveLocation(
                         icon = MarkerIcons.BLACK
                         iconTintColor = if (index == mapViewModel.selectedMarkerIndex.value) android.graphics.Color.RED else android.graphics.Color.parseColor("#00db77")
                         setOnClickListener { overlay ->
-                            val document = overlay.tag as? Document ?: return@setOnClickListener false
+                            val document = overlay.tag as? BrandLocation ?: return@setOnClickListener false
                             val clickedIndex = displayInfoList.indexOfFirst { it.first.id == document.id }
                             if (clickedIndex == -1) return@setOnClickListener false
                             mapViewModel.selectMarker(clickedIndex)

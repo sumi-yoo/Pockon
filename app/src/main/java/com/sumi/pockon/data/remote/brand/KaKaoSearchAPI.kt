@@ -1,6 +1,5 @@
 package com.sumi.pockon.data.remote.brand
 
-import com.sumi.pockon.data.model.Brands
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Query
@@ -14,5 +13,5 @@ interface KaKaoSearchAPI {
         @Query("x") x: String? = null,
         @Query("y") y: String? = null,
         @Query("radius") radius: Int? = 10000
-    ): Brands
+    ): BrandSearchDto
 }

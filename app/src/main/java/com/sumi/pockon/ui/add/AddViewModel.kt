@@ -3,13 +3,10 @@ package com.sumi.pockon.ui.add
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
 import com.sumi.pockon.R
 import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
-import com.sumi.pockon.data.model.Gift
+import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.domain.usecase.AddGiftUseCase
-import com.sumi.pockon.util.GifticonParser
 import com.sumi.pockon.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -19,7 +16,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -100,7 +96,6 @@ class AddViewModel @Inject constructor(
 
     fun setPhoto(photo: Bitmap?) {
         _uiState.value = _uiState.value.copy(photo = photo)
-//        photo?.let { analyzeImage(it) }
     }
 
     fun changeDatePickerState() {
@@ -143,22 +138,6 @@ class AddViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(isCheckedCash = !_uiState.value.isCheckedCash)
     }
 
-    private fun analyzeImage(bitmap: Bitmap) {
-        viewModelScope.launch {
-            try {
-                val recognizer = TextRecognition.getClient(KoreanTextRecognizerOptions.Builder().build())
-                val result = recognizer.process(bitmap, 0).await()
-                val info = GifticonParser.parse(result.text)
-                _uiState.value = _uiState.value.copy(
-                    name = info.name,
-                    brand = info.brand,
-                    cash = info.cash,
-                    endDate = info.endDate,
-                    isCheckedCash = info.cash.isNotEmpty()
-                )
-            } catch (_: Exception) { }
-        }
-    }
 }
 
 data class AddUiState(

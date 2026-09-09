@@ -67,8 +67,8 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.sumi.pockon.R
-import com.sumi.pockon.data.model.Document
-import com.sumi.pockon.data.model.Gift
+import com.sumi.pockon.domain.model.BrandLocation
+import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.util.formatString
 import com.sumi.pockon.util.getDday
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -303,7 +303,7 @@ fun HomeGiftItem(
     gift: Gift,
     formattedEndDate: String,
     dDay: Pair<String, Boolean>,
-    document: Document? = null,
+    document: BrandLocation? = null,
     onClick: () -> Unit
 ) {
     Box(

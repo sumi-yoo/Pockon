@@ -1,6 +1,5 @@
 package com.sumi.pockon.data.remote.gift
 
-import com.sumi.pockon.data.model.Gift
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -12,7 +11,7 @@ class GiftDataRemoteSource @Inject constructor(
     private val firestore: FirebaseFirestore
 ) {
 
-    suspend fun createGift(gift: Gift): String {
+    suspend fun createGift(gift: GiftDto): String {
         val document = firestore
             .collection("gift")
             .document()
@@ -21,7 +20,7 @@ class GiftDataRemoteSource @Inject constructor(
         return document.id
     }
 
-    suspend fun updateGift(gift: Gift) {
+    suspend fun updateGift(gift: GiftDto) {
         firestore
             .collection("gift")
             .document(gift.id)
@@ -37,13 +36,13 @@ class GiftDataRemoteSource @Inject constructor(
             .await()
     }
 
-    suspend fun loadGifts(uid: String): List<Gift> = firestore
+    suspend fun loadGifts(uid: String): List<GiftDto> = firestore
         .collection("gift")
         .whereEqualTo("uid", uid)
         .get()
         .await()
         .documents
-        .mapNotNull { document -> document.toObject(Gift::class.java) }
+        .mapNotNull { document -> document.toObject(GiftDto::class.java) }
 
     suspend fun deleteGift(id: String) {
         firestore.collection("gift").document(id).delete().await()

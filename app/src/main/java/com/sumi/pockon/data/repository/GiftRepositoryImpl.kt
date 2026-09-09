@@ -1,14 +1,15 @@
 package com.sumi.pockon.data.repository
 
 import android.content.Context
-import com.sumi.pockon.data.local.gift.GiftEntity
 import com.sumi.pockon.data.local.gift.GiftLocalDataSource
-import com.sumi.pockon.data.model.Gift
+import com.sumi.pockon.data.mapper.toDomain
+import com.sumi.pockon.data.mapper.toEntity
 import com.sumi.pockon.data.remote.gift.GiftDataRemoteSource
 import com.sumi.pockon.data.remote.gift.GiftPhotoRemoteDataSource
+import com.sumi.pockon.data.remote.gift.toDomain
+import com.sumi.pockon.data.remote.gift.toDto
+import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.domain.repository.GiftRepository
-import com.sumi.pockon.util.saveBitmapToFile
-import com.sumi.pockon.util.loadImageFromPath
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -28,16 +29,16 @@ class GiftRepositoryImpl @Inject constructor(
 ) : GiftRepository {
 
     override fun observeAllGifts(): Flow<List<Gift>> =
-        giftLocalDataSource.getAllGift().map { gifts -> gifts.map { it.toGift() } }
+        giftLocalDataSource.getAllGift().map { gifts -> gifts.map { it.toDomain() } }
 
     override fun observeUsedGifts(): Flow<List<Gift>> =
-        giftLocalDataSource.getAllUsedGift().map { gifts -> gifts.map { it.toGift() } }
+        giftLocalDataSource.getAllUsedGift().map { gifts -> gifts.map { it.toDomain() } }
 
     override fun observeAvailableGifts(): Flow<List<Gift>> =
-        giftLocalDataSource.getAllNotUsedGift().map { gifts -> gifts.map { it.toGift() } }
+        giftLocalDataSource.getAllNotUsedGift().map { gifts -> gifts.map { it.toDomain() } }
 
     override fun observeGift(id: String): Flow<Gift> = giftLocalDataSource.getGift(id)
-        .map { gift -> gift.toGift() }
+        .map { gift -> gift.toDomain() }
 
     override suspend fun getGiftCountByEndDate(endDt: String): Result<Int> =
         withContext(Dispatchers.IO) {
@@ -63,7 +64,7 @@ class GiftRepositoryImpl @Inject constructor(
 
     override suspend fun syncGifts(uid: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val gifts = giftDataRemoteSource.loadGifts(uid)
+            val gifts = giftDataRemoteSource.loadGifts(uid).map { it.toDomain() }
             val photos = giftPhotoRemoteDataSource.downloadPhotos(
                 uid = uid,
                 ids = gifts.map(Gift::id)
@@ -87,7 +88,7 @@ class GiftRepositoryImpl @Inject constructor(
                 val id = if (isGuestMode) {
                     SimpleDateFormat("yyyyMMddHHmmssSSS", Locale.getDefault()).format(Date())
                 } else {
-                    val remoteId = giftDataRemoteSource.createGift(gift.copy(photo = null))
+                    val remoteId = giftDataRemoteSource.createGift(gift.toDto().copy(id = ""))
                     val photo = requireNotNull(gift.photo) { "Gift photo is required." }
                     giftPhotoRemoteDataSource.uploadPhoto(photo, gift.uid, remoteId)
                     remoteId
@@ -109,7 +110,7 @@ class GiftRepositoryImpl @Inject constructor(
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             if (!isGuestMode) {
-                giftDataRemoteSource.updateGift(gift.copy(photo = null))
+                giftDataRemoteSource.updateGift(gift.toDto())
 
                 if (shouldUploadPhoto) {
                     val photo = requireNotNull(gift.photo) { "Gift photo is required." }
@@ -185,31 +186,4 @@ class GiftRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun Gift.toEntity(id: String, context: Context) = GiftEntity(
-        id = id,
-        uid = uid,
-        photoPath = saveBitmapToFile(photo, context),
-        name = name,
-        brand = brand,
-        endDt = endDt,
-        addDt = addDt,
-        memo = memo,
-        usedDt = usedDt,
-        cash = cash,
-        isFavorite = isFavorite
-    )
-
-    private fun GiftEntity.toGift() = Gift(
-        id = id,
-        uid = uid,
-        photo = loadImageFromPath(photoPath),
-        name = name,
-        brand = brand,
-        endDt = endDt,
-        addDt = addDt,
-        memo = memo,
-        usedDt = usedDt,
-        cash = cash,
-        isFavorite = isFavorite
-    )
 }

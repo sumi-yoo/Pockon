@@ -5,7 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import com.sumi.pockon.receiver.AlarmReceiver
-import com.sumi.pockon.data.model.Gift
+import com.sumi.pockon.domain.model.Gift
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.Calendar
 import javax.inject.Inject

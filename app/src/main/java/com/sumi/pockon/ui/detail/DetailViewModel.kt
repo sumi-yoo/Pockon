@@ -8,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.R
 import com.sumi.pockon.domain.usecase.GetNotificationSettingsUseCase
 import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
-import com.sumi.pockon.data.model.Gift
+import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
 import com.sumi.pockon.domain.usecase.UpdateGiftFavoriteUseCase
 import com.sumi.pockon.domain.usecase.UpdateGiftUseCase
