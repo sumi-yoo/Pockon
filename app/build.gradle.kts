@@ -76,19 +76,12 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-    }
     dataBinding {
         enable = true
     }
 }
 
 dependencies {
-    // mlkit
-    implementation("com.google.mlkit:text-recognition-korean:16.0.1")
-
     // material-icons-extended
     implementation(libs.androidx.material.icons.extended.v161)
 
