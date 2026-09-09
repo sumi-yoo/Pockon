@@ -2,8 +2,6 @@ package com.sumi.pockon.ui.map
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.naver.maps.geometry.LatLng
@@ -15,8 +13,10 @@ import com.sumi.pockon.domain.usecase.ObserveAvailableGiftsUseCase
 import com.sumi.pockon.util.getDdayInt
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -26,8 +26,8 @@ class MapViewModel @Inject constructor(
     private val observeAvailableGiftsUseCase: ObserveAvailableGiftsUseCase
 ) : ViewModel() {
 
-    private val _displayInfoList = MutableLiveData<List<Pair<Document, List<Gift>>>>(listOf())
-    val displayInfoList: LiveData<List<Pair<Document, List<Gift>>>> = _displayInfoList
+    private val _displayInfoList = MutableStateFlow<List<Pair<Document, List<Gift>>>>(emptyList())
+    val displayInfoList: StateFlow<List<Pair<Document, List<Gift>>>> = _displayInfoList.asStateFlow()
     private val _cameraPosition = mutableStateOf<CameraPosition?>(null)
     val cameraPosition: State<CameraPosition?> = _cameraPosition
 
@@ -50,24 +50,22 @@ class MapViewModel @Inject constructor(
     // 로컬 기프티콘 목록 변화 감지해서 가져오기
     private fun observeGiftList() {
         viewModelScope.launch(Dispatchers.IO) {
-            observeAvailableGiftsUseCase().take(1).collectLatest { allGift ->
+            observeAvailableGiftsUseCase().collectLatest { allGift ->
+                giftList = allGift
                 if (allGift.isNotEmpty()) {
-                    giftList = allGift
-                    getAllBrands() // 키워드별 브랜드 위치 정보 가져오기(로컬)
+                    getAllBrands()
                 } else {
-                    // 기프티콘 없음
-                    giftList = listOf()
+                    nearestDoc = null
+                    _displayInfoList.value = emptyList()
                 }
             }
         }
     }
 
-    private fun getAllBrands() {
-        viewModelScope.launch {
-            getCachedBrandsUseCase().onSuccess { brands ->
-                brandInfoList = brands
-                mappingInfo()
-            }
+    private suspend fun getAllBrands() {
+        getCachedBrandsUseCase().onSuccess { brands ->
+            brandInfoList = brands
+            mappingInfo()
         }
     }
 
@@ -105,7 +103,7 @@ class MapViewModel @Inject constructor(
             selectMarker(index)
         }
 
-        _displayInfoList.postValue(markerInGiftList)
+        _displayInfoList.value = markerInGiftList
     }
 
     fun getNearestDoc() = this.nearestDoc

@@ -7,6 +7,9 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.sumi.pockon.databinding.FragmentMapBinding
 import com.sumi.pockon.data.model.Document
 import com.sumi.pockon.data.model.Gift
@@ -21,6 +24,7 @@ import com.naver.maps.map.overlay.Marker
 import com.naver.maps.map.overlay.Overlay
 import com.naver.maps.map.util.FusedLocationSource
 import com.naver.maps.map.util.MarkerIcons
+import kotlinx.coroutines.launch
 
 class MapFragment : Fragment(), OnMapReadyCallback {
 
@@ -66,69 +70,79 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun show() {
-        markerList.clear()
-        mapViewModel.displayInfoList.observe(viewLifecycleOwner) { list ->
-            list.forEach {
-                // 마커 찍기
-                val marker = Marker()
-                marker.position = LatLng(it.first.y.toDouble(), it.first.x.toDouble())
-                marker.width = 70
-                marker.height = 100
-                marker.captionText = it.first.placeName
-                marker.captionTextSize = 9F
-                marker.captionRequestedWidth = 200
-                marker.map = naverMap
-                marker.tag = it.first
-                marker.icon = MarkerIcons.BLACK
-                marker.onClickListener = Overlay.OnClickListener { overlay ->
-                    val document = overlay.tag as Document
-                    markerList.forEach { (id, marker) ->
-                        if (id == document.id) {
-                            // 뷰페이저 셋팅
-                            onClick?.invoke(it.second)
-
-                            marker.iconTintColor = Color.RED
-                            marker.width = 90
-                            marker.height = 120
-                        } else {
-                            marker.iconTintColor = Color.parseColor("#00db77")
-                            marker.width = 70
-                            marker.height = 100
-                        }
-                    }
-                    // 카메라 이동
-                    val cameraUpdate =
-                        CameraUpdate.scrollTo(LatLng(document.y.toDouble(), document.x.toDouble()))
-                            .animate(CameraAnimation.Easing)
-                    naverMap.moveCamera(cameraUpdate)
-                    false
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                mapViewModel.displayInfoList.collect { list ->
+                    renderMarkers(list)
                 }
+            }
+        }
+    }
 
-                // 가장 가까운 곳
-                mapViewModel.getNearestDoc()?.let { nearestDoc ->
-                    if (nearestDoc.x == it.first.x && nearestDoc.y == it.first.y) {
-                        // 초기엔 가장 가까운곳으로
+    private fun renderMarkers(list: List<Pair<Document, List<Gift>>>) {
+        markerList.values.forEach { it.map = null }
+        markerList.clear()
+
+        list.forEach { info ->
+            // 마커 찍기
+            val marker = Marker()
+            marker.position = LatLng(info.first.y.toDouble(), info.first.x.toDouble())
+            marker.width = 70
+            marker.height = 100
+            marker.captionText = info.first.placeName
+            marker.captionTextSize = 9F
+            marker.captionRequestedWidth = 200
+            marker.map = naverMap
+            marker.tag = info.first
+            marker.icon = MarkerIcons.BLACK
+            marker.onClickListener = Overlay.OnClickListener { overlay ->
+                val document = overlay.tag as Document
+                markerList.forEach { (id, marker) ->
+                    if (id == document.id) {
                         // 뷰페이저 셋팅
-                        onClick?.invoke(it.second)
-
-                        // 카메라 이동
-                        val cameraUpdate = CameraUpdate.scrollTo(
-                            LatLng(
-                                nearestDoc.y.toDouble(),
-                                nearestDoc.x.toDouble()
-                            )
-                        )
-                        naverMap.moveCamera(cameraUpdate)
+                        onClick?.invoke(info.second)
 
                         marker.iconTintColor = Color.RED
                         marker.width = 90
                         marker.height = 120
                     } else {
                         marker.iconTintColor = Color.parseColor("#00db77")
+                        marker.width = 70
+                        marker.height = 100
                     }
                 }
-                markerList[it.first.id] = marker
+                // 카메라 이동
+                val cameraUpdate =
+                    CameraUpdate.scrollTo(LatLng(document.y.toDouble(), document.x.toDouble()))
+                        .animate(CameraAnimation.Easing)
+                naverMap.moveCamera(cameraUpdate)
+                false
             }
+
+            // 가장 가까운 곳
+            mapViewModel.getNearestDoc()?.let { nearestDoc ->
+                if (nearestDoc.x == info.first.x && nearestDoc.y == info.first.y) {
+                    // 초기엔 가장 가까운곳으로
+                    // 뷰페이저 셋팅
+                    onClick?.invoke(info.second)
+
+                    // 카메라 이동
+                    val cameraUpdate = CameraUpdate.scrollTo(
+                        LatLng(
+                            nearestDoc.y.toDouble(),
+                            nearestDoc.x.toDouble()
+                        )
+                    )
+                    naverMap.moveCamera(cameraUpdate)
+
+                    marker.iconTintColor = Color.RED
+                    marker.width = 90
+                    marker.height = 120
+                } else {
+                    marker.iconTintColor = Color.parseColor("#00db77")
+                }
+            }
+            markerList[info.first.id] = marker
         }
     }
 }

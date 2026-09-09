@@ -65,49 +65,50 @@ class LoginFragment : Fragment() {
             }
         }
 
-        loginViewModel.isFirstLogin.observe(viewLifecycleOwner) {
-            binding.lyLogin.visibility = if (it) View.VISIBLE else View.INVISIBLE
-        }
-
-        loginViewModel.isLogin.observe(viewLifecycleOwner) {
-            if (it) {
-                // 로그인 성공 > 메인 화면으로 이동
-                val navController = Navigation.findNavController(requireView())
-                navController.popBackStack()
-                if (loginViewModel.getIsPinUse()) navController.navigate(R.id.pinFragment)
-                else navController.navigate(R.id.mainFragment)
-            }
-        }
-
-        loginViewModel.isFail.observe(viewLifecycleOwner) {
-            if (it) {
-                // 로그인 실패 스낵바
-                Snackbar.make(
-                    binding.root,
-                    getString(R.string.msg_login_fail),
-                    Snackbar.LENGTH_LONG
-                ).show()
-            }
-        }
-
-        loginViewModel.isLoading.observe(viewLifecycleOwner) {
-            binding.cvLoadingScreen.setContent {
-                if (it) LoadingScreen()
-            }
-        }
-
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                loginViewModel.events.collect { event ->
-                    when (event) {
-                        is LoginEvent.LaunchSignIn -> signInLauncher.launch(event.intent)
-                        LoginEvent.RequestLegacySignIn -> loginViewModel.requestSignInIntent()
+                launch {
+                    loginViewModel.uiState.collect { state ->
+                        render(state)
+                    }
+                }
+                launch {
+                    loginViewModel.events.collect { event ->
+                        when (event) {
+                            is LoginEvent.LaunchSignIn -> signInLauncher.launch(event.intent)
+                            LoginEvent.RequestLegacySignIn -> loginViewModel.requestSignInIntent()
+                            LoginEvent.ShowLoginFailure -> showLoginFailure()
+                        }
                     }
                 }
             }
         }
 
         return binding.root
+    }
+
+    private fun render(state: LoginUiState) {
+        binding.lyLogin.visibility = if (state.isFirstLogin) View.VISIBLE else View.INVISIBLE
+        binding.cvLoadingScreen.setContent {
+            if (state.isLoading) LoadingScreen()
+        }
+
+        if (state.isAuthenticated) {
+            val navController = Navigation.findNavController(requireView())
+            if (navController.currentDestination?.id == R.id.loginFragment) {
+                navController.popBackStack()
+                if (loginViewModel.getIsPinUse()) navController.navigate(R.id.pinFragment)
+                else navController.navigate(R.id.mainFragment)
+            }
+        }
+    }
+
+    private fun showLoginFailure() {
+        Snackbar.make(
+            binding.root,
+            getString(R.string.msg_login_fail),
+            Snackbar.LENGTH_LONG
+        ).show()
     }
 
     private fun showPrivacyConsentDialog(onAgree: () -> Unit) {

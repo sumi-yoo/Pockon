@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -67,6 +68,7 @@ import com.sumi.pockon.util.getDday
 @Composable
 fun MapScreen(onBack: () -> Unit, onDetail: (String) -> Unit) {
     val mapViewModel = hiltViewModel<MapViewModel>()
+    val displayInfoList by mapViewModel.displayInfoList.collectAsState()
     val context = LocalContext.current
     var detailGift by rememberSaveable { mutableStateOf<Gift?>(null) }
     var isTopScroll by rememberSaveable { mutableStateOf<Boolean?>(false) }
@@ -84,50 +86,52 @@ fun MapScreen(onBack: () -> Unit, onDetail: (String) -> Unit) {
             NaverMapWithLiveLocation(
                 fusedLocationClient = fusedLocationClient,
                 mapViewModel = mapViewModel,
+                displayInfoList = displayInfoList,
                 isTopScroll = {
                     isTopScroll = it
                 }
             )
 
             // 뷰페이저
-            if (mapViewModel.displayInfoList.value?.isNotEmpty() == true) {
+            if (displayInfoList.isNotEmpty()) {
                 mapViewModel.selectedMarkerIndex.value?.let { index ->
-                    val point = mapViewModel.displayInfoList.value?.get(index)?.second
-                    if ((point?.size ?: 0) < 1) return
-                    val pagerState = rememberPagerState(pageCount = { point!!.size })
-                    // 상세 보기에서 돌아올 때 기존 페이지 유지
-                    LaunchedEffect(Unit) {
-                        pagerState.scrollToPage(mapViewModel.getPageIndex())
-                    }
-                    LaunchedEffect(isTopScroll) {
-                        if (isTopScroll == true) {
-                            pagerState.scrollToPage(0)
-                            isTopScroll = false
+                    val point = displayInfoList.getOrNull(index)?.second
+                    if (!point.isNullOrEmpty()) {
+                        val pagerState = rememberPagerState(pageCount = { point.size })
+                        // 상세 보기에서 돌아올 때 기존 페이지 유지
+                        LaunchedEffect(Unit) {
+                            pagerState.scrollToPage(mapViewModel.getPageIndex())
                         }
-                    }
-                    HorizontalPager(
-                        state = pagerState,
-                        pageSize = PageSize.Fill,
-                        contentPadding = PaddingValues(horizontal = 15.dp), // 좌우 여백 추가
-                        pageSpacing = 5.dp, // 각 페이지 사이 여백 추가
-                        modifier = Modifier
-                            .padding(bottom = 20.dp)
-                            .fillMaxWidth()
-                            .height(120.dp)
-                            .align(Alignment.BottomCenter)
-                    ) { pageIndex ->
-                        val gift = point!![pageIndex]
-                        GiftItem(isEdit = false,
-                            gift = gift,
-                            formattedEndDate = formatString(gift.endDt),
-                            dDay = getDday(gift.endDt),
-                            isCheck = false,
-                            onClick = {
-                                // 상세보기 이동
-                                onDetail(gift.id)
-                                mapViewModel.setPageIndex(pagerState.currentPage)
+                        LaunchedEffect(isTopScroll) {
+                            if (isTopScroll == true) {
+                                pagerState.scrollToPage(0)
+                                isTopScroll = false
                             }
-                        )
+                        }
+                        HorizontalPager(
+                            state = pagerState,
+                            pageSize = PageSize.Fill,
+                            contentPadding = PaddingValues(horizontal = 15.dp), // 좌우 여백 추가
+                            pageSpacing = 5.dp, // 페이지 사이 여백
+                            modifier = Modifier
+                                .padding(bottom = 20.dp)
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .align(Alignment.BottomCenter)
+                        ) { pageIndex ->
+                            val gift = point[pageIndex]
+                            GiftItem(isEdit = false,
+                                gift = gift,
+                                formattedEndDate = formatString(gift.endDt),
+                                dDay = getDday(gift.endDt),
+                                isCheck = false,
+                                onClick = {
+                                    // 상세보기 이동
+                                    onDetail(gift.id)
+                                    mapViewModel.setPageIndex(pagerState.currentPage)
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -144,12 +148,20 @@ fun MapScreen(onBack: () -> Unit, onDetail: (String) -> Unit) {
 fun NaverMapWithLiveLocation(
     fusedLocationClient: FusedLocationProviderClient,
     mapViewModel: MapViewModel,
+    displayInfoList: List<Pair<Document, List<Gift>>>,
     isTopScroll: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
     val mapView = rememberMapViewWithLifecycle()
     val locationRef = remember { mutableStateOf<CircleOverlay?>(null) }
     val markerRefs = remember { mutableStateListOf<Marker?>() }
+
+    LaunchedEffect(displayInfoList) {
+        // 마커 초기화
+        markerRefs.forEach { it?.map = null }
+        markerRefs.clear()
+        markerRefs.addAll(List(displayInfoList.size) { null })
+    }
 
     // 위치 업데이트를 DisposableEffect로 관리
     DisposableEffect(Unit) {
@@ -221,16 +233,8 @@ fun NaverMapWithLiveLocation(
                     }
                 }
 
-                // 마커 초기화
-                if (markerRefs.size != mapViewModel.displayInfoList.value?.size) {
-                    markerRefs.clear()
-                    mapViewModel.displayInfoList.value?.let { displayInfoList ->
-                        markerRefs.addAll(List(displayInfoList.size) { null })
-                    }
-                }
-
                 // 마커 표시
-                mapViewModel.displayInfoList.value?.forEachIndexed { index, info ->
+                displayInfoList.forEachIndexed { index, info ->
                     val marker = markerRefs[index] ?: Marker().apply {
                         position = LatLng(info.first.y.toDouble(), info.first.x.toDouble())
                         width = if (index == mapViewModel.selectedMarkerIndex.value) 80 else 70
@@ -244,11 +248,11 @@ fun NaverMapWithLiveLocation(
                         iconTintColor = if (index == mapViewModel.selectedMarkerIndex.value) android.graphics.Color.RED else android.graphics.Color.parseColor("#00db77")
                         setOnClickListener { overlay ->
                             val document = overlay.tag as? Document ?: return@setOnClickListener false
-                            val clickedIndex = mapViewModel.displayInfoList.value?.indexOfFirst { it.first.id == document.id }
-                            if (clickedIndex == -1 || clickedIndex == null) return@setOnClickListener false
+                            val clickedIndex = displayInfoList.indexOfFirst { it.first.id == document.id }
+                            if (clickedIndex == -1) return@setOnClickListener false
                             mapViewModel.selectMarker(clickedIndex)
                             isTopScroll(true)
-                            mapViewModel.displayInfoList.value?.forEachIndexed { index, _ ->
+                            displayInfoList.forEachIndexed { index, _ ->
                                 val marker = markerRefs.getOrNull(index)
                                 if (index == clickedIndex) {
                                     // 선택된 마커 강조
