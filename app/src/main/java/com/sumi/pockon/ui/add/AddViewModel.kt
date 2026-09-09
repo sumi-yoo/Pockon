@@ -1,14 +1,11 @@
 package com.sumi.pockon.ui.add
 
 import android.graphics.Bitmap
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
 import com.sumi.pockon.R
-import com.sumi.pockon.domain.usecase.GetNotificationSettingsUseCase
 import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
 import com.sumi.pockon.data.model.Gift
 import com.sumi.pockon.domain.usecase.AddGiftUseCase
@@ -16,7 +13,11 @@ import com.sumi.pockon.util.GifticonParser
 import com.sumi.pockon.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
@@ -32,116 +33,96 @@ class AddViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<AddGiftEvent>()
-    val events: SharedFlow<AddGiftEvent> = _events
+    val events: SharedFlow<AddGiftEvent> = _events.asSharedFlow()
 
     private val session = getUserSessionUseCase()
     private val uid = session.uid
     private val isGuestMode = session.isGuest
 
-    private val _isShowDatePicker = mutableStateOf(false)
-    val isShowDatePicker: State<Boolean> = _isShowDatePicker
-
-    private val _isCheckedCash = mutableStateOf(false)
-    val isCheckedCash: State<Boolean> = _isCheckedCash
-
-    private val _isShowIndicator = mutableStateOf(false)
-    val isShowIndicator: State<Boolean> = _isShowIndicator
-
-    private val _isShowNoInternetDialog = mutableStateOf(false)
-    val isShowNoInternetDialog: State<Boolean> = _isShowNoInternetDialog
-
-    private val _photo = mutableStateOf<Bitmap?>(null)
-    val photo: State<Bitmap?> = _photo
-    private val _name = mutableStateOf("")
-    val name: State<String> = _name
-    private val _brand = mutableStateOf("")
-    val brand: State<String> = _brand
-    private val _cash = mutableStateOf("")
-    val cash: State<String> = _cash
-    private val _endDate = mutableStateOf("")
-    val endDate: State<String> = _endDate
-    private val _memo = mutableStateOf("")
-    val memo: State<String> = _memo
+    private val _uiState = MutableStateFlow(AddUiState())
+    val uiState: StateFlow<AddUiState> = _uiState.asStateFlow()
 
     fun setGift(index: Int, value: String) {
         when (index) {
-            0 -> _name.value = value
-            1 -> _brand.value = value
-            2 -> _cash.value = value
-            3 -> _endDate.value = value
-            4 -> _memo.value = value
+            0 -> _uiState.value = _uiState.value.copy(name = value)
+            1 -> _uiState.value = _uiState.value.copy(brand = value)
+            2 -> _uiState.value = _uiState.value.copy(cash = value)
+            3 -> _uiState.value = _uiState.value.copy(endDate = value)
+            4 -> _uiState.value = _uiState.value.copy(memo = value)
         }
     }
 
     fun addGift() {
         if (!isGuestMode && !networkMonitor.isConnected()) {
-            _isShowNoInternetDialog.value = true
+            _uiState.value = _uiState.value.copy(isShowNoInternetDialog = true)
             return
         }
 
-        _isShowIndicator.value = true
+        _uiState.value = _uiState.value.copy(isLoading = true)
         val addDate = SimpleDateFormat(
             "yyyyMMddHHmmss",
             Locale.getDefault()
         ).format(Date(System.currentTimeMillis()))
 
-        val gift = if (_isCheckedCash.value) {
+        val state = _uiState.value
+        val gift = if (state.isCheckedCash) {
             Gift(
                 uid = uid,
-                name = _name.value.trim(),
-                photo = _photo.value,
-                brand = _brand.value.trim(),
-                endDt = _endDate.value,
+                name = state.name.trim(),
+                photo = state.photo,
+                brand = state.brand.trim(),
+                endDt = state.endDate,
                 addDt = addDate,
-                memo = _memo.value,
-                cash = _cash.value,
+                memo = state.memo,
+                cash = state.cash,
                 isFavorite = false
             )
         } else {
             Gift(
                 uid = uid,
-                name = _name.value.trim(),
-                photo = _photo.value,
-                brand = _brand.value.trim(),
-                endDt = _endDate.value,
+                name = state.name.trim(),
+                photo = state.photo,
+                brand = state.brand.trim(),
+                endDt = state.endDate,
                 addDt = addDate,
-                memo = _memo.value,
+                memo = state.memo,
                 isFavorite = false
             )
         }
         viewModelScope.launch {
-            val result = addGiftUseCase(isGuestMode, gift)
-            _isShowIndicator.value = false
+            val result = runCatching { addGiftUseCase(isGuestMode, gift) }.getOrNull()
+            _uiState.value = _uiState.value.copy(isLoading = false)
             _events.emit(
-                if (result.isSuccess) AddGiftEvent.Saved else AddGiftEvent.SaveFailed
+                if (result?.isSuccess == true) AddGiftEvent.Saved else AddGiftEvent.SaveFailed
             )
         }
     }
 
     fun setPhoto(photo: Bitmap?) {
-        _photo.value = photo
+        _uiState.value = _uiState.value.copy(photo = photo)
 //        photo?.let { analyzeImage(it) }
     }
 
     fun changeDatePickerState() {
-        _isShowDatePicker.value = !_isShowDatePicker.value
+        _uiState.value = _uiState.value.copy(isShowDatePicker = !_uiState.value.isShowDatePicker)
     }
 
     fun changeNoInternetDialogState() {
-        _isShowNoInternetDialog.value = !_isShowNoInternetDialog.value
+        _uiState.value = _uiState.value.copy(isShowNoInternetDialog = false)
     }
 
     fun isValid(): Int? {
         var msg: Int? = null
-        if (_photo.value == null) {
+        val state = _uiState.value
+        if (state.photo == null) {
             msg = R.string.msg_no_photo
-        } else if (_name.value.isEmpty()) {
+        } else if (state.name.isEmpty()) {
             msg = R.string.msg_no_name
-        } else if (_brand.value.isEmpty()) {
+        } else if (state.brand.isEmpty()) {
             msg = R.string.msg_no_brand
-        } else if (_endDate.value.isEmpty() || _endDate.value.length < 8) {
+        } else if (state.endDate.isEmpty() || state.endDate.length < 8) {
             msg = R.string.msg_no_end_date
-        } else if (_isCheckedCash.value && _cash.value.isEmpty()) {
+        } else if (state.isCheckedCash && state.cash.isEmpty()) {
             msg = R.string.msg_no_cash
         }
 
@@ -159,7 +140,7 @@ class AddViewModel @Inject constructor(
     }
 
     fun chgCheckedCash() {
-        _isCheckedCash.value = !_isCheckedCash.value
+        _uiState.value = _uiState.value.copy(isCheckedCash = !_uiState.value.isCheckedCash)
     }
 
     private fun analyzeImage(bitmap: Bitmap) {
@@ -168,17 +149,30 @@ class AddViewModel @Inject constructor(
                 val recognizer = TextRecognition.getClient(KoreanTextRecognizerOptions.Builder().build())
                 val result = recognizer.process(bitmap, 0).await()
                 val info = GifticonParser.parse(result.text)
-                _name.value = info.name
-                _brand.value = info.brand
-                _cash.value = info.cash
-                _endDate.value = info.endDate
-                if (_cash.value.isNotEmpty()) {
-                    _isCheckedCash.value = true
-                }
+                _uiState.value = _uiState.value.copy(
+                    name = info.name,
+                    brand = info.brand,
+                    cash = info.cash,
+                    endDate = info.endDate,
+                    isCheckedCash = info.cash.isNotEmpty()
+                )
             } catch (_: Exception) { }
         }
     }
 }
+
+data class AddUiState(
+    val photo: Bitmap? = null,
+    val name: String = "",
+    val brand: String = "",
+    val cash: String = "",
+    val endDate: String = "",
+    val memo: String = "",
+    val isShowDatePicker: Boolean = false,
+    val isCheckedCash: Boolean = false,
+    val isLoading: Boolean = false,
+    val isShowNoInternetDialog: Boolean = false
+)
 
 sealed interface AddGiftEvent {
     data object Saved : AddGiftEvent

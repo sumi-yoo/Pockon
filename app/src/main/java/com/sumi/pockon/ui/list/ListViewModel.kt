@@ -1,9 +1,6 @@
 package com.sumi.pockon.ui.list
 
 import com.sumi.pockon.R
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.domain.usecase.GetNotificationSettingsUseCase
@@ -20,7 +17,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -41,7 +42,7 @@ class ListViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<ListEvent>(extraBufferCapacity = 1)
-    val events: SharedFlow<ListEvent> = _events
+    val events: SharedFlow<ListEvent> = _events.asSharedFlow()
 
     private val session = getUserSessionUseCase()
     private var uid = session.uid
@@ -49,42 +50,21 @@ class ListViewModel @Inject constructor(
     private var isRefresh = false
     private var removeGift: Gift? = null
 
-    private val _giftList = mutableStateOf<List<Gift>>(listOf())
-    val giftList: State<List<Gift>> = _giftList
-
-    private val _copyGiftList = mutableStateOf<List<Gift>>(listOf())
-    val copyGiftList: State<List<Gift>> = _copyGiftList
+    private val _uiState = MutableStateFlow(ListUiState())
+    val uiState: StateFlow<ListUiState> = _uiState.asStateFlow()
 
     private var filterList = listOf<String>()
-
-    private var _chipElement = mutableStateOf<Map<String, Boolean>?>(null)
-    val chipElement: State<Map<String, Boolean>?> = _chipElement
-
-    private val _topTitle = mutableIntStateOf(R.string.top_app_bar_recent)
-    val topTitle: State<Int> = _topTitle
-
-    private val _checkedGiftList = mutableStateOf<List<String>>(listOf())
-    val checkedGiftList: State<List<String>> = _checkedGiftList
-
-    private val _isAllSelect = mutableStateOf(false)
-    val isAllSelect: State<Boolean> = _isAllSelect
-
-    private val _isShowNoInternetDialog = mutableStateOf(false)
-    val isShowNoInternetDialog: State<Boolean> = _isShowNoInternetDialog
-
-    private val _isScrollTop = mutableStateOf(false)
-    val isScrollTop: State<Boolean> = _isScrollTop
 
     init {
         observeGiftList() // 관찰자 등록
     }
 
     fun setTopTitle(title: Int) {
-        _topTitle.intValue = title
+        _uiState.value = _uiState.value.copy(topTitle = title)
     }
 
     fun setIsAllSelect(flag: Boolean) {
-        _isAllSelect.value = flag
+        _uiState.value = _uiState.value.copy(isAllSelect = flag)
     }
 
     // 로컬 기프티콘 목록 변화 감지해서 가져오기
@@ -92,14 +72,21 @@ class ListViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             observeAvailableGiftsUseCase().collectLatest { allGift ->
                 if (allGift.isNotEmpty()) {
-                    _giftList.value = allGift
-                    _copyGiftList.value = _giftList.value
+                    _uiState.value = _uiState.value.copy(
+                        giftList = allGift,
+                        copyGiftList = allGift
+                    )
                     sortChips()
                     filterList()
                     orderBy()
                 } else {
-                    _giftList.value = listOf()
-                    _copyGiftList.value = listOf()
+                    _uiState.value = _uiState.value.copy(
+                        giftList = emptyList(),
+                        copyGiftList = emptyList(),
+                        chipElement = emptyMap(),
+                        checkedGiftIds = emptyList(),
+                        isAllSelect = false
+                    )
                     filterList = listOf()
                     if (isRefresh) {
                         toggleIsScrollTop()
@@ -122,7 +109,7 @@ class ListViewModel @Inject constructor(
         }
 
         if (!networkMonitor.isConnected()) {
-            _isShowNoInternetDialog.value = true
+            _uiState.value = _uiState.value.copy(isShowNoInternetDialog = true)
             return
         }
 
@@ -135,7 +122,7 @@ class ListViewModel @Inject constructor(
 
     private fun sortChips() {
         val element = mutableMapOf("" to true)
-        _giftList.value.forEach {
+        _uiState.value.giftList.forEach {
             if (!element.containsKey(it.brand)) element[it.brand] = false
         }
         val beforeElements = mutableMapOf<String, Boolean>()
@@ -145,7 +132,7 @@ class ListViewModel @Inject constructor(
             beforeElements[key] = filterList.contains(key)
         }
         if (filterList.isEmpty()) beforeElements[""] = true
-        _chipElement.value = beforeElements
+        _uiState.value = _uiState.value.copy(chipElement = beforeElements)
     }
 
     fun setRemoveGift(gift: Gift) {
@@ -156,8 +143,8 @@ class ListViewModel @Inject constructor(
         val beforeElements = mutableMapOf<String, Boolean>()
         val beforeFilters = mutableListOf<String>()
 
-        _chipElement.value?.keys?.forEach { key ->
-            val state = _chipElement.value!![key]
+        _uiState.value.chipElement.keys.forEach { key ->
+            val state = _uiState.value.chipElement[key]
             if (targetList.contains(key)) beforeElements[key] = !state!! else beforeElements[key] =
                 state!!
 
@@ -175,7 +162,7 @@ class ListViewModel @Inject constructor(
             beforeElements[""] = true
         }
 
-        _chipElement.value = beforeElements
+        _uiState.value = _uiState.value.copy(chipElement = beforeElements)
         filterList = beforeFilters
         filterList()
         orderBy()
@@ -185,17 +172,18 @@ class ListViewModel @Inject constructor(
 
     private fun filterList() {
         val filtered = mutableListOf<Gift>()
-        _giftList.value.forEach {
+        _uiState.value.giftList.forEach {
             if (filterList.contains(it.brand) || filterList.isEmpty()) filtered.add(it)
         }
-        _copyGiftList.value = filtered
+        _uiState.value = _uiState.value.copy(copyGiftList = filtered)
     }
 
     fun orderBy() {
-        when (_topTitle.intValue) {
+        val state = _uiState.value
+        val sortedGiftList = when (state.topTitle) {
             R.string.top_app_bar_recent -> { // 최신순
                 val dateFormat = SimpleDateFormat("yyyyMMddHHmmss", Locale.KOREA)
-                _copyGiftList.value = _copyGiftList.value.sortedWith(
+                state.copyGiftList.sortedWith(
                     compareByDescending<Gift> {
                         dateFormat.parse(it.addDt)?.time
                     }.thenBy { it.brand }.thenBy { it.name }
@@ -203,14 +191,14 @@ class ListViewModel @Inject constructor(
             }
             R.string.top_app_bar_end_date -> { // 만료일순
                 val dateFormat = SimpleDateFormat("yyyyMMdd", Locale.KOREA)
-                _copyGiftList.value = _copyGiftList.value.sortedWith(
+                state.copyGiftList.sortedWith(
                     compareBy<Gift> {
                         dateFormat.parse(it.endDt)?.time
                     }.thenBy { it.brand }.thenBy { it.name }
                 )
             }
             else -> { // 가나다순
-                _copyGiftList.value = _copyGiftList.value.sortedWith(
+                state.copyGiftList.sortedWith(
                     compareBy(
                         { it.brand },
                         { it.name },
@@ -219,6 +207,7 @@ class ListViewModel @Inject constructor(
                 )
             }
         }
+        _uiState.value = _uiState.value.copy(copyGiftList = sortedGiftList)
         if (isRefresh) {
             toggleIsScrollTop()
             isRefresh = false
@@ -228,7 +217,7 @@ class ListViewModel @Inject constructor(
     // 기프티콘 수정
     fun usedGift(gift: Gift) {
         if (!isGuestMode && !networkMonitor.isConnected()) {
-            _isShowNoInternetDialog.value = true
+            _uiState.value = _uiState.value.copy(isShowNoInternetDialog = true)
             _events.tryEmit(ListEvent.GiftUseFailed)
             return
         }
@@ -255,7 +244,7 @@ class ListViewModel @Inject constructor(
     // 기프티콘 삭제
     fun removeGift() {
         if (!isGuestMode && !networkMonitor.isConnected()) {
-            _isShowNoInternetDialog.value = true
+            _uiState.value = _uiState.value.copy(isShowNoInternetDialog = true)
             _events.tryEmit(ListEvent.GiftDeleteFailed)
             return
         }
@@ -281,43 +270,47 @@ class ListViewModel @Inject constructor(
 
     // 선택된 기프티콘 리스트에 추가(for 삭제)
     fun checkedGift(id: String) {
-        val filterList = _checkedGiftList.value.filter { it != id }
-        if (filterList.size == _checkedGiftList.value.size) { // 선택
-            val checkedList = _checkedGiftList.value.toMutableList()
+        val state = _uiState.value
+        val filteredIds = state.checkedGiftIds.filter { it != id }
+        if (filteredIds.size == state.checkedGiftIds.size) { // 선택
+            val checkedList = state.checkedGiftIds.toMutableList()
             checkedList.add(id)
-            _checkedGiftList.value = checkedList
-
-            if (_checkedGiftList.value.size == _copyGiftList.value.size) _isAllSelect.value = true
+            _uiState.value = state.copy(
+                checkedGiftIds = checkedList,
+                isAllSelect = checkedList.size == state.copyGiftList.size
+            )
         } else { // 해제
-            _checkedGiftList.value = filterList
-            if (_checkedGiftList.value.size != _copyGiftList.value.size) _isAllSelect.value = false
+            _uiState.value = state.copy(checkedGiftIds = filteredIds, isAllSelect = false)
         }
     }
 
     // 선택된 기프티콘 리스트 초기화
     fun clearCheckedGiftList() {
-        _checkedGiftList.value = listOf()
+        _uiState.value = _uiState.value.copy(
+            checkedGiftIds = emptyList(),
+            isAllSelect = false
+        )
     }
 
     // 전체선택/전체해제
     fun onClickAllSelect() {
-        _isAllSelect.value = !_isAllSelect.value
-        if (_isAllSelect.value) {
-            _checkedGiftList.value = _copyGiftList.value.map { it.id }
-        } else {
-            _checkedGiftList.value = listOf()
-        }
+        val state = _uiState.value
+        val isAllSelect = !state.isAllSelect
+        _uiState.value = state.copy(
+            isAllSelect = isAllSelect,
+            checkedGiftIds = if (isAllSelect) state.copyGiftList.map { it.id } else emptyList()
+        )
     }
 
     // 선택 삭제/전체 삭제
     fun deleteSelection() {
         if (!isGuestMode && !networkMonitor.isConnected()) {
-            _isShowNoInternetDialog.value = true
+            _uiState.value = _uiState.value.copy(isShowNoInternetDialog = true)
             _events.tryEmit(ListEvent.GiftDeleteFailed)
             return
         }
 
-        val ids = _checkedGiftList.value
+        val ids = _uiState.value.checkedGiftIds
         if (ids.isEmpty()) {
             _events.tryEmit(ListEvent.GiftDeleteFailed)
             return
@@ -337,15 +330,26 @@ class ListViewModel @Inject constructor(
     }
 
     fun changeNoInternetDialogState() {
-        _isShowNoInternetDialog.value = !_isShowNoInternetDialog.value
+        _uiState.value = _uiState.value.copy(isShowNoInternetDialog = false)
     }
 
     fun toggleIsScrollTop() {
-        _isScrollTop.value = !_isScrollTop.value
+        _uiState.value = _uiState.value.copy(isScrollTop = !_uiState.value.isScrollTop)
     }
 
     fun getFilterList() = this.filterList
 }
+
+data class ListUiState(
+    val giftList: List<Gift> = emptyList(),
+    val copyGiftList: List<Gift> = emptyList(),
+    val chipElement: Map<String, Boolean> = emptyMap(),
+    val topTitle: Int = R.string.top_app_bar_recent,
+    val checkedGiftIds: List<String> = emptyList(),
+    val isAllSelect: Boolean = false,
+    val isShowNoInternetDialog: Boolean = false,
+    val isScrollTop: Boolean = false
+)
 
 sealed interface ListEvent {
     data object GiftUseFailed : ListEvent

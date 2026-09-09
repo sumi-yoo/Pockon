@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -37,13 +38,12 @@ class DetailViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<DetailEvent>()
-    val events: SharedFlow<DetailEvent> = _events
+    val events: SharedFlow<DetailEvent> = _events.asSharedFlow()
 
     private val isGuestMode = getUserSessionUseCase().isGuest
 
     private val _gift = mutableStateOf(Gift())
     val gift: State<Gift> = _gift
-
     private val _photo = mutableStateOf<Bitmap?>(null)
     val photo: State<Bitmap?> = _photo
     private val _name = mutableStateOf("")
@@ -60,28 +60,20 @@ class DetailViewModel @Inject constructor(
     val usedDt: State<String> = _usedDt
     private val _isFavorite = mutableStateOf(false)
     val isFavorite: State<Boolean> = _isFavorite
-
     private val _isShowBottomSheet = mutableStateOf(false)
     val isShowBottomSheet: State<Boolean> = _isShowBottomSheet
-
     private val _isShowCancelDialog = mutableStateOf(false)
     val isShowCancelDialog: State<Boolean> = _isShowCancelDialog
-
     private val _isShowUseCashDialog = mutableStateOf(false)
     val isShowUseCashDialog: State<Boolean> = _isShowUseCashDialog
-
     private val _isShowDatePicker = mutableStateOf(false)
     val isShowDatePicker: State<Boolean> = _isShowDatePicker
-
     private val _isCheckedCash = mutableStateOf(false)
     val isCheckedCash: State<Boolean> = _isCheckedCash
-
     private val _isEdit = mutableStateOf(false)
     val isEdit: State<Boolean> = _isEdit
-
     private val _isShowIndicator = mutableStateOf(false)
     val isShowIndicator: State<Boolean> = _isShowIndicator
-
     private val _isShowNoInternetDialog = mutableStateOf(false)
     val isShowNoInternetDialog: State<Boolean> = _isShowNoInternetDialog
 
@@ -202,13 +194,15 @@ class DetailViewModel @Inject constructor(
         }
         viewModelScope.launch {
             try {
-                val result = updateGiftUseCase(
-                    isGuestMode = isGuestMode,
-                    gift = updateGift,
-                    shouldUploadPhoto = true
-                )
+                val result = runCatching {
+                    updateGiftUseCase(
+                        isGuestMode = isGuestMode,
+                        gift = updateGift,
+                        shouldUploadPhoto = true
+                    )
+                }.getOrNull()
 
-                if (result.isSuccess) {
+                if (result?.isSuccess == true) {
                     cancelGiftAlarmUseCase(
                         updateGift.id,
                         getNotificationSettingsUseCase().daysBeforeExpiry
@@ -245,13 +239,15 @@ class DetailViewModel @Inject constructor(
         )
         viewModelScope.launch {
             try {
-                val result = updateGiftUseCase(
-                    isGuestMode = isGuestMode,
-                    gift = gift,
-                    shouldUploadPhoto = false
-                )
+                val result = runCatching {
+                    updateGiftUseCase(
+                        isGuestMode = isGuestMode,
+                        gift = gift,
+                        shouldUploadPhoto = false
+                    )
+                }.getOrNull()
 
-                if (result.isSuccess) {
+                if (result?.isSuccess == true) {
                     _gift.value = gift
                     _isShowBottomSheet.value = false
                     _isShowUseCashDialog.value = false

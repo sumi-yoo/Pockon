@@ -55,6 +55,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -106,6 +107,7 @@ import androidx.compose.ui.text.style.TextOverflow
 @Composable
 fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolean) -> Unit) {
     val listViewModel = hiltViewModel<ListViewModel>()
+    val uiState by listViewModel.uiState.collectAsState()
 
     var showRemoveDlg by rememberSaveable { mutableStateOf(false) }
     var isEdit by rememberSaveable { mutableStateOf(false) }
@@ -154,8 +156,8 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
         }
     }
 
-    LaunchedEffect(listViewModel.isScrollTop.value) {
-        if (listViewModel.isScrollTop.value) {
+    LaunchedEffect(uiState.isScrollTop) {
+        if (uiState.isScrollTop) {
             if (listViewModel.getFilterList().isEmpty()) {
                 chipState.scrollToItem(0)
             }
@@ -184,7 +186,7 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
     }
 
     // NoInternetDialog
-    if (listViewModel.isShowNoInternetDialog.value) {
+    if (uiState.isShowNoInternetDialog) {
         AlertDialog.Builder(context)
             .setTitle(stringResource(id = R.string.txt_alert))
             .setMessage(stringResource(id = R.string.msg_no_internet))
@@ -199,9 +201,9 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
             SnackbarHost(hostState = snackbarHostState)
         }
     ) { _ ->
-        val title = if (isEdit && listViewModel.checkedGiftList.value.isEmpty()) {
+        val title = if (isEdit && uiState.checkedGiftIds.isEmpty()) {
             R.string.btn_cancel
-        } else if (isEdit && listViewModel.checkedGiftList.value.isNotEmpty()) {
+        } else if (isEdit && uiState.checkedGiftIds.isNotEmpty()) {
             R.string.btn_delete
         } else {
             R.string.btn_edit
@@ -212,7 +214,7 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
         ) {
             Column {
                 ListScreenTopBar(
-                    title = listViewModel.topTitle.value,
+                    title = uiState.topTitle,
                     actionText = title,
                     onDropDown = {
                         listViewModel.setTopTitle(it)
@@ -220,10 +222,10 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
                         listViewModel.toggleIsScrollTop()
                     },
                     onClick = {
-                        if (listViewModel.giftList.value.isEmpty()) return@ListScreenTopBar
+                        if (uiState.giftList.isEmpty()) return@ListScreenTopBar
                         // 삭제
                         if (isEdit) {
-                            if (listViewModel.checkedGiftList.value.isEmpty()) isEdit =
+                            if (uiState.checkedGiftIds.isEmpty()) isEdit =
                                 false
                             else showRemoveDlg = true
                         } else { // 편집
@@ -247,7 +249,7 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
                             .fillMaxSize()
                     ) {
                         // empty screen
-                        if (listViewModel.giftList.value.isEmpty()) {
+                        if (uiState.giftList.isEmpty()) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -271,11 +273,10 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
                                 LazyRow(
                                     state = chipState
                                 ) {
-                                    listViewModel.chipElement.value?.let { chips ->
-                                        items(
-                                            items = chips.keys.toList(),
-                                            key = { chip -> chip }
-                                        ) { key ->
+                                    items(
+                                        items = uiState.chipElement.keys.toList(),
+                                        key = { chip -> chip }
+                                    ) { key ->
                                             FilterChip(
                                                 onClick = {
                                                     listViewModel.setIsAllSelect(false)
@@ -299,7 +300,7 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
                                                         )
                                                     }
                                                 },
-                                                selected = chips[key] ?: false,
+                                                selected = uiState.chipElement[key] ?: false,
                                                 shape = RoundedCornerShape(50.dp),
                                                 colors = FilterChipDefaults.filterChipColors().copy(
                                                     containerColor = MaterialTheme.colorScheme.primary,
@@ -308,7 +309,6 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
                                                 border = null
                                             )
                                             Spacer(modifier = Modifier.padding(3.dp))
-                                        }
                                     }
                                 }
 
@@ -326,7 +326,7 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
                                             Checkbox(
                                                 modifier = Modifier
                                                     .scale(0.8f),
-                                                checked = listViewModel.isAllSelect.value,
+                                                checked = uiState.isAllSelect,
                                                 onCheckedChange = {
                                                     listViewModel.onClickAllSelect()
                                                 },
@@ -352,7 +352,7 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
                                         .padding(bottom = 10.dp)
                                 ) {
                                     items(
-                                        items = listViewModel.copyGiftList.value,
+                                        items = uiState.copyGiftList,
                                         key = { gift -> gift.id }
                                     ) { gift ->
                                         SwipeToDismissItem(
@@ -370,7 +370,7 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
                                                 gift = gift,
                                                 formattedEndDate = formatString(gift.endDt),
                                                 dDay = getDday(gift.endDt),
-                                                isCheck = listViewModel.checkedGiftList.value.contains(
+                                                isCheck = uiState.checkedGiftIds.contains(
                                                     gift.id
                                                 ),
                                                 onClick = {

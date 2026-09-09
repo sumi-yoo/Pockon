@@ -38,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,6 +75,7 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 fun UsedScreen(onDetail: (String) -> Unit, onBack: () -> Unit) {
     val usedViewModel = hiltViewModel<UsedViewModel>()
+    val uiState by usedViewModel.uiState.collectAsState()
 
     var showRemoveDlg by rememberSaveable { mutableStateOf(false) }
     var isEdit by rememberSaveable { mutableStateOf(false) }
@@ -133,10 +135,10 @@ fun UsedScreen(onDetail: (String) -> Unit, onBack: () -> Unit) {
                     text = stringResource(id = R.string.title_used_gift),
                     fontSize = 16.sp,
                 )
-                if (usedViewModel.giftList.value.isNotEmpty()) {
-                    val title = if (isEdit && usedViewModel.checkedGiftList.value.isEmpty()) {
+                if (uiState.giftList.isNotEmpty()) {
+                    val title = if (isEdit && uiState.checkedGiftIds.isEmpty()) {
                         R.string.btn_cancel
-                    } else if (isEdit && usedViewModel.checkedGiftList.value.isNotEmpty()) {
+                    } else if (isEdit && uiState.checkedGiftIds.isNotEmpty()) {
                         R.string.btn_delete
                     } else {
                         R.string.btn_edit
@@ -148,7 +150,7 @@ fun UsedScreen(onDetail: (String) -> Unit, onBack: () -> Unit) {
                             .clickable {
                                 // 삭제
                                 if (isEdit) {
-                                    if (usedViewModel.checkedGiftList.value.isEmpty()) isEdit =
+                                    if (uiState.checkedGiftIds.isEmpty()) isEdit =
                                         false
                                     else showRemoveDlg = true
                                 } else { // 편집
@@ -177,7 +179,7 @@ fun UsedScreen(onDetail: (String) -> Unit, onBack: () -> Unit) {
                     ) {
                         Checkbox(
                             modifier = Modifier.scale(0.8f),
-                            checked = usedViewModel.isAllSelect.value,
+                            checked = uiState.isAllSelect,
                             onCheckedChange = {
                                 usedViewModel.onClickAllSelect()
                             },
@@ -195,7 +197,7 @@ fun UsedScreen(onDetail: (String) -> Unit, onBack: () -> Unit) {
                 }
             }
 
-            if (usedViewModel.giftList.value.isEmpty()) {
+            if (uiState.giftList.isEmpty()) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -218,11 +220,11 @@ fun UsedScreen(onDetail: (String) -> Unit, onBack: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                itemsIndexed(items = usedViewModel.giftList.value) { index, gift ->
+                itemsIndexed(items = uiState.giftList) { index, gift ->
                     UsedGiftItem(gift = gift,
                         formattedEndDate = formatString(gift.endDt),
                         isEdit = isEdit,
-                        isCheck = usedViewModel.checkedGiftList.value.contains(gift.id),
+                        isCheck = uiState.checkedGiftIds.contains(gift.id),
                         onClick = {
                             if (isEdit) usedViewModel.checkedGift(gift.id)
                             else onDetail(gift.id)
@@ -243,7 +245,7 @@ fun UsedScreen(onDetail: (String) -> Unit, onBack: () -> Unit) {
         })
     }
 
-    if (usedViewModel.isShowIndicator.value) {
+    if (uiState.isLoading) {
         LoadingScreen()
     }
 }

@@ -1,7 +1,5 @@
 package com.sumi.pockon.ui.used
 
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
@@ -13,7 +11,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -28,23 +30,14 @@ class UsedViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<UsedEvent>(extraBufferCapacity = 1)
-    val events: SharedFlow<UsedEvent> = _events
+    val events: SharedFlow<UsedEvent> = _events.asSharedFlow()
 
     private val session = getUserSessionUseCase()
     private var uid = session.uid
     private var isGuestMode = session.isGuest
 
-    private val _giftList = mutableStateOf<List<Gift>>(listOf())
-    val giftList: State<List<Gift>> = _giftList
-
-    private val _checkedGiftList = mutableStateOf<List<String>>(listOf())
-    val checkedGiftList: State<List<String>> = _checkedGiftList
-
-    private val _isAllSelect = mutableStateOf<Boolean>(false)
-    val isAllSelect: State<Boolean> = _isAllSelect
-
-    private val _isShowIndicator = mutableStateOf(false)
-    val isShowIndicator: State<Boolean> = _isShowIndicator
+    private val _uiState = MutableStateFlow(UsedUiState())
+    val uiState: StateFlow<UsedUiState> = _uiState.asStateFlow()
 
     init {
         observeGiftList()
@@ -57,27 +50,26 @@ class UsedViewModel @Inject constructor(
                 if (allGift.isNotEmpty()) {
                     val dateFormat = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
 
-                    _giftList.value = allGift.sortedWith(
+                    _uiState.value = _uiState.value.copy(giftList = allGift.sortedWith(
                         compareByDescending<Gift> { dateFormat.parse(it.usedDt)?.time ?: Long.MIN_VALUE }
                             .thenBy { it.brand }
                             .thenBy { it.name }
                             .thenBy { it.endDt.ifEmpty { "99991231" } }
-                    )
+                    ))
                 } else {
-                    // 기프티콘 없음
-                    _giftList.value = listOf()
+                    _uiState.value = UsedUiState()
                 }
             }
         }
     }
 
     fun setIsAllSelect(flag: Boolean) {
-        _isAllSelect.value = flag
+        _uiState.value = _uiState.value.copy(isAllSelect = flag)
     }
 
     // 선택된 기프티콘 리스트 초기화
     fun clearCheckedGiftList() {
-        _checkedGiftList.value = listOf()
+        _uiState.value = _uiState.value.copy(checkedGiftIds = emptyList())
     }
 
     // 선택 삭제/전체 삭제
@@ -87,50 +79,63 @@ class UsedViewModel @Inject constructor(
             return
         }
 
-        val ids = _checkedGiftList.value
+        val ids = _uiState.value.checkedGiftIds
         if (ids.isEmpty()) {
             _events.tryEmit(UsedEvent.DeleteFailed)
             return
         }
 
-        _isShowIndicator.value = true
+        _uiState.value = _uiState.value.copy(isLoading = true)
         viewModelScope.launch {
             try {
-                val result = deleteGiftsUseCase(isGuestMode, uid, ids)
+                val result = runCatching {
+                    deleteGiftsUseCase(isGuestMode, uid, ids)
+                }.getOrNull()
                 _events.emit(
-                    if (result.isSuccess) UsedEvent.Deleted else UsedEvent.DeleteFailed
+                    if (result?.isSuccess == true) UsedEvent.Deleted else UsedEvent.DeleteFailed
                 )
             } finally {
-                _isShowIndicator.value = false
+                _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
     }
 
     // 선택된 기프티콘 리스트에 추가(for 삭제)
     fun checkedGift(id: String) {
-        val filterList = _checkedGiftList.value.filter { it != id }
-        if (filterList.size == _checkedGiftList.value.size) { // 선택
-            val checkedList = _checkedGiftList.value.toMutableList()
+        val state = _uiState.value
+        val filterList = state.checkedGiftIds.filter { it != id }
+        if (filterList.size == state.checkedGiftIds.size) { // 선택
+            val checkedList = state.checkedGiftIds.toMutableList()
             checkedList.add(id)
-            _checkedGiftList.value = checkedList
-
-            if (_checkedGiftList.value.size == _giftList.value.size) _isAllSelect.value = true
+            _uiState.value = state.copy(
+                checkedGiftIds = checkedList,
+                isAllSelect = checkedList.size == state.giftList.size
+            )
         } else { // 해제
-            _checkedGiftList.value = filterList
-            if (_checkedGiftList.value.size != _giftList.value.size) _isAllSelect.value = false
+            _uiState.value = state.copy(
+                checkedGiftIds = filterList,
+                isAllSelect = false
+            )
         }
     }
 
     // 전체선택/전체해제
     fun onClickAllSelect() {
-        _isAllSelect.value = !_isAllSelect.value
-        if (_isAllSelect.value) {
-            _checkedGiftList.value = _giftList.value.map { it.id }
-        } else {
-            _checkedGiftList.value = listOf()
-        }
+        val state = _uiState.value
+        val isAllSelect = !state.isAllSelect
+        _uiState.value = state.copy(
+            isAllSelect = isAllSelect,
+            checkedGiftIds = if (isAllSelect) state.giftList.map { it.id } else emptyList()
+        )
     }
 }
+
+data class UsedUiState(
+    val giftList: List<Gift> = emptyList(),
+    val checkedGiftIds: List<String> = emptyList(),
+    val isAllSelect: Boolean = false,
+    val isLoading: Boolean = false
+)
 
 sealed interface UsedEvent {
     data object Deleted : UsedEvent

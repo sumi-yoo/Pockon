@@ -49,6 +49,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -86,6 +87,7 @@ import java.util.TimeZone
 @Composable
 fun AddGifticon(onBack: (Boolean) -> Unit) {
     val addViewModel = hiltViewModel<AddViewModel>()
+    val uiState by addViewModel.uiState.collectAsState()
 
     // snackbar
     val snackbarHostState = remember { SnackbarHostState() }
@@ -119,11 +121,11 @@ fun AddGifticon(onBack: (Boolean) -> Unit) {
 
     // input data
     val inputDataList = listOf(
-        addViewModel.name.value,
-        addViewModel.brand.value,
-        addViewModel.cash.value,
-        addViewModel.endDate.value,
-        addViewModel.memo.value
+        uiState.name,
+        uiState.brand,
+        uiState.cash,
+        uiState.endDate,
+        uiState.memo
     )
 
     Scaffold(
@@ -145,7 +147,7 @@ fun AddGifticon(onBack: (Boolean) -> Unit) {
                     .padding(top = 5.dp, bottom = 5.dp, start = 25.dp, end = 25.dp)
             ) {
                 // gift image
-                GiftImage(addViewModel.photo.value, context, galleryLauncher)
+                GiftImage(uiState.photo, context, galleryLauncher)
                 // cash
                 Box(
                     modifier = Modifier.fillMaxWidth()
@@ -168,7 +170,7 @@ fun AddGifticon(onBack: (Boolean) -> Unit) {
                             Checkbox(
                                 modifier = Modifier
                                     .scale(0.8f),
-                                checked = addViewModel.isCheckedCash.value,
+                                checked = uiState.isCheckedCash,
                                 onCheckedChange = {
                                     addViewModel.chgCheckedCash()
                                 },
@@ -183,7 +185,7 @@ fun AddGifticon(onBack: (Boolean) -> Unit) {
                 }
                 // text field
                 for (i in inputDataList.indices) {
-                    if (i == 2 && !addViewModel.isCheckedCash.value) continue
+                    if (i == 2 && !uiState.isCheckedCash) continue
                     InputDataTextField(
                         value = inputDataList[i],
                         label = addViewModel.getLabelList(i),
@@ -227,9 +229,9 @@ fun AddGifticon(onBack: (Boolean) -> Unit) {
         }
 
         // DatePicker
-        if (addViewModel.isShowDatePicker.value) {
+        if (uiState.isShowDatePicker) {
             CustomDatePickerDialog(
-                dateString = addViewModel.endDate.value,
+                dateString = uiState.endDate,
                 onCancel = { addViewModel.changeDatePickerState() },
                 onConfirm = {
                     addViewModel.changeDatePickerState()
@@ -240,12 +242,12 @@ fun AddGifticon(onBack: (Boolean) -> Unit) {
     }
 
     // Loading Indicator
-    if (addViewModel.isShowIndicator.value) {
+    if (uiState.isLoading) {
         LoadingScreen()
     }
 
     // NoInternetDialog
-    if (addViewModel.isShowNoInternetDialog.value) {
+    if (uiState.isShowNoInternetDialog) {
         AlertDialog.Builder(context)
             .setTitle(stringResource(id = R.string.txt_alert))
             .setMessage(stringResource(id = R.string.msg_no_internet))
