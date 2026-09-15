@@ -36,11 +36,16 @@ class PinViewModel @Inject constructor(
     private val _showSuccess = mutableStateOf(false)
     val showSuccess: State<Boolean> = _showSuccess
 
+    private val _isVerifying = mutableStateOf(false)
+    val isVerifying: State<Boolean> = _isVerifying
+
     init {
         _mode.intValue = if (pinNumber.isEmpty()) 0 else 2
     }
 
     fun setMode(mode: Int) {
+        if (_isVerifying.value) return
+
         this._mode.intValue = mode
         _error.value = null
         inputPin.clear()
@@ -51,11 +56,15 @@ class PinViewModel @Inject constructor(
     }
 
     fun addPinNum(num: Int) {
+        if (_isVerifying.value || inputPin.size >= pinSize) return
+
         inputPin.add(num)
         comparePinNum()
     }
 
     fun removeLastPin() {
+        if (_isVerifying.value || inputPin.isEmpty()) return
+
         inputPin.removeAt(inputPin.lastIndex)
     }
 
@@ -69,36 +78,43 @@ class PinViewModel @Inject constructor(
 
     private fun comparePinNum() {
         if (inputPin.size == pinSize) {
+            val enteredPin = inputPin.joinToString("")
+            _isVerifying.value = true
+
             viewModelScope.launch {
                 delay(300)
-                when (_mode.intValue) {
-                    0 -> {
-                        _mode.intValue = 1
-                        checkPin = inputPin.joinToString("")
-                        inputPin.clear()
-                        _error.value = null
-                    }
-
-                    1 -> {
-                        if (inputPin.joinToString("") == checkPin) {
-                            savePinUseCase(checkPin)
-                            _error.value = null
-                            _showSuccess.value = true
-                        } else {
+                try {
+                    when (_mode.intValue) {
+                        0 -> {
+                            _mode.intValue = 1
+                            checkPin = enteredPin
                             inputPin.clear()
-                            _error.value = R.string.msg_pin_auth_fail
+                            _error.value = null
+                        }
+
+                        1 -> {
+                            if (enteredPin == checkPin) {
+                                savePinUseCase(checkPin)
+                                _error.value = null
+                                _showSuccess.value = true
+                            } else {
+                                inputPin.clear()
+                                _error.value = R.string.msg_pin_auth_fail
+                            }
+                        }
+
+                        else -> {
+                            if (enteredPin == pinNumber) {
+                                _error.value = null
+                                _showSuccess.value = true
+                            } else {
+                                inputPin.clear()
+                                _error.value = R.string.msg_pin_auth_fail
+                            }
                         }
                     }
-
-                    else -> {
-                        if (inputPin.joinToString("") == pinNumber) {
-                            _error.value = null
-                            _showSuccess.value = true
-                        } else {
-                            inputPin.clear()
-                            _error.value = R.string.msg_pin_auth_fail
-                        }
-                    }
+                } finally {
+                    _isVerifying.value = false
                 }
             }
         }

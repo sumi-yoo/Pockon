@@ -1,10 +1,8 @@
 package com.sumi.pockon.ui.login
 
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.domain.usecase.GetGoogleCredentialUseCase
-import com.sumi.pockon.domain.usecase.GetSignInIntentUseCase
 import com.sumi.pockon.domain.usecase.SignInUseCase
 import com.sumi.pockon.domain.usecase.IsPinEnabledUseCase
 import com.sumi.pockon.domain.usecase.SaveUserSessionUseCase
@@ -23,7 +21,6 @@ import javax.inject.Inject
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val getGoogleCredentialUseCase: GetGoogleCredentialUseCase,
-    private val getSignInIntentUseCase: GetSignInIntentUseCase,
     private val signInUseCase: SignInUseCase,
     private val isPinEnabledUseCase: IsPinEnabledUseCase,
     private val saveUserSessionUseCase: SaveUserSessionUseCase,
@@ -39,23 +36,13 @@ class LoginViewModel @Inject constructor(
     )
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
-    private val _events = MutableSharedFlow<LoginEvent>()
-    val events: SharedFlow<LoginEvent> = _events.asSharedFlow()
+    private val _loginFailureEvents = MutableSharedFlow<Unit>()
+    val loginFailureEvents: SharedFlow<Unit> = _loginFailureEvents.asSharedFlow()
 
     private var isPinUse = isPinEnabledUseCase()
 
     fun getIsPinUse(): Boolean {
         return isPinUse
-    }
-
-    fun requestSignInIntent() {
-        viewModelScope.launch {
-            getSignInIntentUseCase(session.email).onSuccess { intent ->
-                _events.emit(LoginEvent.LaunchSignIn(intent))
-            }.onFailure {
-                _events.emit(LoginEvent.ShowLoginFailure)
-            }
-        }
     }
 
     fun loginAsGuest() {
@@ -64,31 +51,12 @@ class LoginViewModel @Inject constructor(
         authenticate()
     }
 
-    fun loginForApiLower(idToken: String?, email: String?, name: String?, profileImg: Uri?) {
-        if (idToken.isNullOrEmpty() || email.isNullOrEmpty()) {
-            showLoginFailure()
-            return
-        }
-
-        setLoading(true)
-        viewModelScope.launch {
-            signInUseCase(idToken).onSuccess { uid ->
-                isPinUse = true
-                saveUserSessionUseCase(uid, email, name, profileImg?.toString())
-                authenticate()
-            }.onFailure {
-                _events.emit(LoginEvent.ShowLoginFailure)
-            }
-            setLoading(false)
-        }
-    }
-
-    fun loginForApiHigher() {
+    fun loginWithGoogleCredential() {
         setLoading(true)
         viewModelScope.launch {
             getGoogleCredentialUseCase().onFailure {
                 setLoading(false)
-                _events.emit(LoginEvent.RequestLegacySignIn)
+                _loginFailureEvents.emit(Unit)
             }.onSuccess { credential ->
                 signInUseCase(credential.idToken).onSuccess { uid ->
                     isPinUse = true
@@ -100,7 +68,7 @@ class LoginViewModel @Inject constructor(
                     )
                     authenticate()
                 }.onFailure {
-                    _events.emit(LoginEvent.ShowLoginFailure)
+                    _loginFailureEvents.emit(Unit)
                 }
                 setLoading(false)
             }
@@ -115,11 +83,6 @@ class LoginViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(isLoading = isLoading)
     }
 
-    private fun showLoginFailure() {
-        viewModelScope.launch {
-            _events.emit(LoginEvent.ShowLoginFailure)
-        }
-    }
 }
 
 data class LoginUiState(
@@ -127,9 +90,3 @@ data class LoginUiState(
     val isAuthenticated: Boolean,
     val isLoading: Boolean = false
 )
-
-sealed interface LoginEvent {
-    data class LaunchSignIn(val intent: android.content.Intent) : LoginEvent
-    data object RequestLegacySignIn : LoginEvent
-    data object ShowLoginFailure : LoginEvent
-}

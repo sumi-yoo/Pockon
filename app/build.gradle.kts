@@ -64,8 +64,6 @@ android {
     }
     buildFeatures {
         compose = true
-        // 뷰 바인딩 활성화
-        viewBinding = true
         buildConfig = true
     }
     composeOptions {
@@ -75,9 +73,6 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
-    }
-    dataBinding {
-        enable = true
     }
 }
 
@@ -93,16 +88,6 @@ dependencies {
 
     // Material2
     implementation(libs.material.v160)
-
-    // Jetpack Navigation Kotlin
-    implementation ("androidx.navigation:navigation-fragment-ktx:2.8.5")
-    implementation ("androidx.navigation:navigation-ui-ktx:2.8.5")
-
-    // cardview
-    implementation("androidx.cardview:cardview:1.0.0")
-
-    // viewpager2
-    implementation("androidx.viewpager2:viewpager2:1.1.0")
 
     // room
     implementation("androidx.room:room-ktx:2.6.1")
@@ -120,17 +105,8 @@ dependencies {
     // naver map SDK
     implementation(libs.map.sdk)
 
-    // fragment
-    implementation(libs.androidx.fragment.ktx)
-
-    // viewbinding
-    implementation(libs.androidx.ui.viewbinding)
-
     // appcompat
     implementation(libs.androidx.appcompat)
-
-    // constraintlayout
-    implementation(libs.androidx.constraintlayout)
 
     // LocalDateTime Api 26 lower
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
@@ -155,7 +131,6 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.3.0"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth:23.0.0")
-    implementation("com.google.android.gms:play-services-auth:21.2.0")
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
 

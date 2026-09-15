@@ -5,6 +5,6 @@ import com.sumi.pockon.domain.repository.AuthRepository
 import javax.inject.Inject
 
 class DeleteAccountUseCase @Inject constructor(private val authRepository: AuthRepository) {
-    suspend operator fun invoke(idToken: String?, credential: GoogleIdTokenCredential? = null): Result<Unit> =
-        authRepository.deleteAccount(idToken, credential)
+    suspend operator fun invoke(credential: GoogleIdTokenCredential): Result<Unit> =
+        authRepository.deleteAccount(credential)
 }

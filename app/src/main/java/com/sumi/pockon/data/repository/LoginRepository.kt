@@ -10,16 +10,12 @@ class LoginRepository @Inject constructor(
     private val loginDataSource: LoginDataSource
 ) : AuthRepository {
 
-    override suspend fun getSignInIntent(accountName: String?) = resultOf {
-        loginDataSource.getSignInIntent(accountName)
-    }
-
     override suspend fun getGoogleCredential() = resultOf { loginDataSource.getIdToken() }
 
     override suspend fun signIn(idToken: String) = resultOf { loginDataSource.login(idToken) }
 
-    override suspend fun deleteAccount(idToken: String?, credential: GoogleIdTokenCredential?) = resultOf {
-        loginDataSource.removeAccount(idToken, credential)
+    override suspend fun deleteAccount(credential: GoogleIdTokenCredential) = resultOf {
+        loginDataSource.removeAccount(credential)
     }
 
     override fun signOut() {

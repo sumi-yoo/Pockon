@@ -10,12 +10,9 @@
         <item name="colorAccent">@color/tertiary</item>
     </style>
 
-    <style name="AppTheme.NumberPicker" parent="">
-        <item name="android:textColorPrimary">@color/onPrimary</item>
-        <item name="colorControlNormal">@color/onPrimary</item>
-    </style>
-
     <style name="CustomTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="colorAccent">@color/onPrimary</item>
+        <item name="android:statusBarColor">@color/gray</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

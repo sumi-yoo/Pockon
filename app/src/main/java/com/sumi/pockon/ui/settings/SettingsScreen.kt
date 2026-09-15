@@ -8,8 +8,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,7 +41,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -61,8 +58,6 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.common.api.ApiException
 import com.sumi.pockon.R
 import com.sumi.pockon.ui.list.ConfirmDialog
 import kotlinx.coroutines.launch
@@ -85,33 +80,9 @@ fun SettingsScreen(
 
     // snackbar
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     val scrollState = rememberScrollState()
-
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-        try {
-            val account = task.getResult(ApiException::class.java)
-            val idToken = account?.idToken
-            if (idToken != null) {
-                settingViewModel.removeAccount(idToken)
-            } else {
-                isLoading(false)
-                scope.launch {
-                    snackbarHostState.showSnackbar(message = context.getString(R.string.msg_remove_account_fail))
-                }
-            }
-        } catch (e: Exception) {
-            isLoading(false)
-            scope.launch {
-                snackbarHostState.showSnackbar(message = context.getString(R.string.msg_remove_account_fail))
-            }
-        }
-    }
 
     Scaffold(
         snackbarHost = {
@@ -289,11 +260,7 @@ fun SettingsScreen(
                 onConfirm = {
                     showRemoveDlg = false
                     isLoading(true)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                        settingViewModel.removeAccountWithCredential()
-                    } else {
-                        settingViewModel.requestLegacySignIn()
-                    }
+                    settingViewModel.removeAccountWithCredential()
                 },
                 onDismiss = {
                     showRemoveDlg = false
@@ -316,7 +283,6 @@ fun SettingsScreen(
     LaunchedEffect(Unit) {
         settingViewModel.events.collect { event ->
             when (event) {
-                is SettingsEvent.LaunchSignIn -> launcher.launch(event.intent)
                 SettingsEvent.AccountDeleted -> {
                     isLoading(false)
                     moveLogInScreen()

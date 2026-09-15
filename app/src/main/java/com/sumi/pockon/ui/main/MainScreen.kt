@@ -16,6 +16,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
@@ -46,6 +47,8 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -65,7 +68,7 @@ import com.sumi.pockon.ui.settings.SettingsScreen
 import com.sumi.pockon.ui.used.UsedScreen
 
 @Composable
-fun BottomNavigationBar(
+fun MainScreen(
     movePinScreen: () -> Unit,
     moveLogInScreen: () -> Unit
 ) {
@@ -74,13 +77,12 @@ fun BottomNavigationBar(
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination
-    val bottomScreens = listOf(
+    val mainTabs = listOf(
         Screen.List,
         Screen.Home,
         Screen.Setting
     )
-    val showBottomBar = navController
-        .currentBackStackEntryAsState().value?.destination?.route in bottomScreens.map { it.route }
+    val showBottomBar = currentRoute?.route in mainTabs.map { it.route }
 
     val context = LocalContext.current
 
@@ -104,51 +106,53 @@ fun BottomNavigationBar(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.primary, // 전체 배경색
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ) {
-                    bottomScreens.forEach { bottomNavigationItem ->
-                        NavigationBarItem(
-                            selected = currentRoute?.hierarchy?.any { it.route == bottomNavigationItem.route } == true,
-                            onClick = {
-                                navController.navigate(route = bottomNavigationItem.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = bottomNavigationItem.icon,
-                                    contentDescription = stringResource(id = bottomNavigationItem.label)
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = stringResource(id = bottomNavigationItem.label)
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                unselectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                unselectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                            )
-                        )
-                    }
-                }
+                BottomNavigationBar(
+                    navController = navController,
+                    currentDestination = currentRoute,
+                    tabs = mainTabs
+                )
             }
         }
     ) { innerPadding ->
-        NavHost(
+        MainContentNavHost(
             navController = navController,
-            startDestination = "home",
-            modifier = Modifier.padding(innerPadding)
-        ) {
+            contentPadding = innerPadding,
+            movePinScreen = movePinScreen,
+            moveLogInScreen = moveLogInScreen,
+            isLoading = { isShowIndicator = it }
+        )
+    }
+
+    // 권한 체크
+    val notGranted = checkPermission(context)
+    if (notGranted.isNotEmpty() && !mainViewModel.isPermRationale.value) {
+        PermissionExplanationDialog(
+            onRequestPermission = {
+                mainViewModel.saveIsPermRationale()
+                launcherPermissions.launch(notGranted)
+            },
+            onDismissRequest = {
+                mainViewModel.saveIsPermRationale()
+            }
+        )
+    }
+
+    if (isShowIndicator) LoadingScreen()
+}
+
+@Composable
+private fun MainContentNavHost(
+    navController: NavHostController,
+    contentPadding: PaddingValues,
+    movePinScreen: () -> Unit,
+    moveLogInScreen: () -> Unit,
+    isLoading: (Boolean) -> Unit
+) {
+    NavHost(
+        navController = navController,
+        startDestination = Screen.Home.route,
+        modifier = Modifier.padding(contentPadding)
+    ) {
             composable(Screen.Home.route) {
                 HomeScreen(
                     onAdd = {
@@ -160,9 +164,7 @@ fun BottomNavigationBar(
                     onDetail = { id ->
                         navController.navigate(route = "${Screen.Detail.route}/${id}")
                     },
-                    isLoading = {
-                        isShowIndicator = it
-                    }
+                    isLoading = isLoading
                 )
             }
             composable(Screen.List.route) {
@@ -173,9 +175,7 @@ fun BottomNavigationBar(
                     onAdd = {
                         navController.navigate(route = Screen.Add.route)
                     },
-                    isLoading = {
-                        isShowIndicator = it
-                    }
+                    isLoading = isLoading
                 )
             }
             composable(Screen.Setting.route) {
@@ -192,9 +192,7 @@ fun BottomNavigationBar(
                     moveNotiImminentUseScreen = {
                         navController.navigate(route = Screen.NotificationSetting.route)
                     },
-                    isLoading = {
-                        isShowIndicator = it
-                    }
+                    isLoading = isLoading
                 )
             }
             composable(
@@ -264,22 +262,45 @@ fun BottomNavigationBar(
         }
     }
 
-    // 권한 체크
-    val notGranted = checkPermission(context)
-    if (notGranted.isNotEmpty() && !mainViewModel.isPermRationale.value) {
-        PermissionExplanationDialog(
-            onRequestPermission = {
-                mainViewModel.saveIsPermRationale()
-                launcherPermissions.launch(notGranted)
-            },
-            onDismissRequest = {
-                mainViewModel.saveIsPermRationale()
-            }
-        )
+@Composable
+private fun BottomNavigationBar(
+    navController: NavHostController,
+    currentDestination: NavDestination?,
+    tabs: List<Screen>
+) {
+    NavigationBar(
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary
+    ) {
+        tabs.forEach { tab ->
+            NavigationBarItem(
+                selected = currentDestination?.hierarchy?.any { it.route == tab.route } == true,
+                onClick = {
+                    navController.navigate(tab.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                icon = {
+                    Icon(
+                        imageVector = tab.icon,
+                        contentDescription = stringResource(tab.label)
+                    )
+                },
+                label = { Text(stringResource(tab.label)) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    unselectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    unselectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            )
+        }
     }
-
-    // Loading Indicator
-    if (isShowIndicator) LoadingScreen()
 }
 
 /** 앨범, 위치, 알림 권한 체크 */

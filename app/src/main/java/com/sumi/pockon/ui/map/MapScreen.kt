@@ -26,7 +26,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -154,13 +153,16 @@ fun NaverMapWithLiveLocation(
     val context = LocalContext.current
     val mapView = rememberMapViewWithLifecycle()
     val locationRef = remember { mutableStateOf<CircleOverlay?>(null) }
-    val markerRefs = remember { mutableStateListOf<Marker?>() }
+    val markerRefs = remember { mutableMapOf<String, Marker>() }
+    var isInitialSelectedMarkerCentered by remember { mutableStateOf(false) }
 
     LaunchedEffect(displayInfoList) {
-        // 마커 초기화
-        markerRefs.forEach { it?.map = null }
-        markerRefs.clear()
-        markerRefs.addAll(List(displayInfoList.size) { null })
+        val visibleMarkerIds = displayInfoList.map { it.first.id }.toSet()
+        markerRefs
+            .filterKeys { it !in visibleMarkerIds }
+            .values
+            .forEach { it.map = null }
+        markerRefs.keys.retainAll(visibleMarkerIds)
     }
 
     // 위치 업데이트를 DisposableEffect로 관리
@@ -235,7 +237,7 @@ fun NaverMapWithLiveLocation(
 
                 // 마커 표시
                 displayInfoList.forEachIndexed { index, info ->
-                    val marker = markerRefs[index] ?: Marker().apply {
+                    val marker = markerRefs[info.first.id] ?: Marker().apply {
                         position = LatLng(info.first.y.toDouble(), info.first.x.toDouble())
                         width = if (index == mapViewModel.selectedMarkerIndex.value) 80 else 70
                         height = if (index == mapViewModel.selectedMarkerIndex.value) 110 else 100
@@ -252,9 +254,9 @@ fun NaverMapWithLiveLocation(
                             if (clickedIndex == -1) return@setOnClickListener false
                             mapViewModel.selectMarker(clickedIndex)
                             isTopScroll(true)
-                            displayInfoList.forEachIndexed { index, _ ->
-                                val marker = markerRefs.getOrNull(index)
-                                if (index == clickedIndex) {
+                            displayInfoList.forEachIndexed { markerIndex, markerInfo ->
+                                val marker = markerRefs[markerInfo.first.id]
+                                if (markerIndex == clickedIndex) {
                                     // 선택된 마커 강조
                                     marker?.apply {
                                         iconTintColor = android.graphics.Color.RED
@@ -281,10 +283,31 @@ fun NaverMapWithLiveLocation(
                             }
                             true
                         }
-                    }
-                    markerRefs[index] = marker
+                    }.also { markerRefs[info.first.id] = it }
                 }
-                naverMap.locationTrackingMode = LocationTrackingMode.Follow
+
+                if (!isInitialSelectedMarkerCentered) {
+                    naverMap.locationTrackingMode = LocationTrackingMode.Follow
+                    val selectedLocation = mapViewModel.selectedMarkerIndex.value
+                        ?.let(displayInfoList::getOrNull)
+                        ?.first
+
+                    selectedLocation?.let { location ->
+                        val markerPosition = LatLng(
+                            location.y.toDouble(),
+                            location.x.toDouble()
+                        )
+                        naverMap.locationTrackingMode = LocationTrackingMode.NoFollow
+                        naverMap.moveCamera(
+                            CameraUpdate.scrollTo(markerPosition)
+                        )
+                        mapViewModel.updateCameraPosition(
+                            CameraPosition(markerPosition, 14.0)
+                        )
+                        mapViewModel.setIsInitialCameraMoved(true)
+                        isInitialSelectedMarkerCentered = true
+                    }
+                }
             }
         }
 

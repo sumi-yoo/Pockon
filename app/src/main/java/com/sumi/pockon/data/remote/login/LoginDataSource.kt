@@ -1,14 +1,11 @@
 package com.sumi.pockon.data.remote.login
 
 import android.content.Context
-import android.content.Intent
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
@@ -37,26 +34,6 @@ class LoginDataSource @Inject constructor(
         .Builder()
         .addCredentialOption(googleIdOption)
         .build()
-
-    suspend fun getSignInIntent(accountName: String?): Intent {
-        // 반드시 signOut을 먼저 호출해줘야 다중 계정 선택 가능
-        val gso = if (accountName.isNullOrEmpty()) {
-            GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken(BuildConfig.GOOGLE_CLIENT_ID)
-                .requestEmail()
-                .build()
-        } else {
-            GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken(BuildConfig.GOOGLE_CLIENT_ID)
-                .requestEmail()
-                .setAccountName(accountName) // 현재 로그인된 계정 고정
-                .build()
-        }
-
-        val googleSignInClient = GoogleSignIn.getClient(context, gso)
-        googleSignInClient.signOut().await()
-        return googleSignInClient.signInIntent
-    }
 
     suspend fun getIdToken(): GoogleIdTokenCredential {
         try {
@@ -96,17 +73,10 @@ class LoginDataSource @Inject constructor(
         auth.signOut()
     }
 
-    suspend fun removeAccount(idToken: String?, selectedCredential: GoogleIdTokenCredential? = null) {
-        require(!idToken.isNullOrEmpty()) { "ID token is required." }
+    suspend fun removeAccount(credential: GoogleIdTokenCredential) {
         val user = requireNotNull(auth.currentUser) { "Signed-in user is required." }
-        require(selectedCredential == null || selectedCredential.id == idToken) { "Selected account does not match." }
-
-        val credential = if (selectedCredential != null) {
-            GoogleAuthProvider.getCredential(selectedCredential.idToken, null)
-        } else {
-            GoogleAuthProvider.getCredential(idToken, null)
-        }
-        user.reauthenticate(credential).await()
+        val firebaseCredential = GoogleAuthProvider.getCredential(credential.idToken, null)
+        user.reauthenticate(firebaseCredential).await()
         user.delete().await()
     }
 }

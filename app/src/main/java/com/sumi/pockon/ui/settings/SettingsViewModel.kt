@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.domain.usecase.DeleteAccountUseCase
 import com.sumi.pockon.domain.usecase.GetGoogleCredentialUseCase
-import com.sumi.pockon.domain.usecase.GetSignInIntentUseCase
 import com.sumi.pockon.domain.usecase.SignOutUseCase
 import com.sumi.pockon.domain.usecase.DeleteGiftsUseCase
 import com.sumi.pockon.domain.usecase.ObserveAllGiftsUseCase
@@ -33,7 +32,6 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val getSignInIntentUseCase: GetSignInIntentUseCase,
     private val getGoogleCredentialUseCase: GetGoogleCredentialUseCase,
     private val deleteAccountUseCase: DeleteAccountUseCase,
     private val signOutUseCase: SignOutUseCase,
@@ -111,27 +109,17 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun requestLegacySignIn() {
-        viewModelScope.launch {
-            getSignInIntentUseCase(email).onSuccess { intent ->
-                _events.emit(SettingsEvent.LaunchSignIn(intent))
-            }.onFailure {
-                _events.emit(SettingsEvent.AccountDeletionFailed)
-            }
-        }
-    }
-
     fun removeAccountWithCredential() {
         viewModelScope.launch {
             getGoogleCredentialUseCase().onSuccess { credential ->
-                removeAccount(email, credential)
+                removeAccount(credential)
             }.onFailure {
                 _events.emit(SettingsEvent.AccountDeletionFailed)
             }
         }
     }
 
-    fun removeAccount(idToken: String?, credential: com.google.android.libraries.identity.googleid.GoogleIdTokenCredential? = null) {
+    private fun removeAccount(credential: com.google.android.libraries.identity.googleid.GoogleIdTokenCredential) {
         if (!isGuestMode && !networkMonitor.isConnected()) {
             _isShowNoInternetDialog.value = true
             return
@@ -146,7 +134,7 @@ class SettingsViewModel @Inject constructor(
             }
 
             val accountDeletion = if (isGuestMode) Result.success(Unit) else {
-                deleteAccountUseCase(idToken, credential)
+                deleteAccountUseCase(credential)
             }
             if (accountDeletion.isFailure) {
                 _events.emit(SettingsEvent.AccountDeletionFailed)
@@ -178,7 +166,6 @@ class SettingsViewModel @Inject constructor(
 }
 
 sealed interface SettingsEvent {
-    data class LaunchSignIn(val intent: android.content.Intent) : SettingsEvent
     data object AccountDeleted : SettingsEvent
     data object AccountDeletionFailed : SettingsEvent
 }

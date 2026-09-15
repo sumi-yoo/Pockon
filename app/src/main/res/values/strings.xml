@@ -112,7 +112,7 @@
     <string name="txt_guest">게스트</string>
     <string name="dlg_msg_logout">로그아웃하시겠어요?</string>
     <string name="dlg_msg_logout_in_guest">게스트 모드를 종료하시겠어요?\n저장된 데이터가 모두 삭제돼요.</string>
-    <string name="dlg_msg_remove_account">회원 탈퇴하시겠어요?\n저장된 데이터가 모두 삭제돼요.</string>
+    <string name="dlg_msg_remove_account">회원 탈퇴하시겠어요?\n저장된 데이터가 모두 삭제돼요.\n\n계정 삭제 전 본인 확인을 위해 Google 계정을 다시 선택해 주세요.</string>
 
     <!--copyright-->
     <string name="txt_copyright">Copyright</string>
