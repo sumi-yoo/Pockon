@@ -59,6 +59,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.sumi.pockon.R
+import com.sumi.pockon.ui.common.PockonTopAppBar
 import com.sumi.pockon.ui.list.ConfirmDialog
 import kotlinx.coroutines.launch
 
@@ -368,20 +369,14 @@ fun SettingItem(
 
 @Composable
 fun SettingScreenTopBar() {
-    // topbar
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.primary)
-            .padding(10.dp)
-            .padding(top = 10.dp, bottom = 10.dp)
-    ) {
+    PockonTopAppBar(
+        title = {
         Text(
-            modifier = Modifier.align(Alignment.Center),
             text = stringResource(id = R.string.setting),
             fontSize = 18.sp,
         )
-    }
+        }
+    )
 }
 
 

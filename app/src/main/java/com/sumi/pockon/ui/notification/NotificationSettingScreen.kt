@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.sumi.pockon.R
+import com.sumi.pockon.ui.common.PockonTopAppBar
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlin.math.abs
@@ -184,38 +185,24 @@ fun NotificationSettingScreen(onBack: () -> Unit) {
 
 @Composable
 fun NotificationSettingScreenTopBar(onBack: () -> Unit) {
-    // topbar
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .drawWithContent {
-                drawContent()
-                drawLine(
-                    color = Color.LightGray,
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, size.height),
-                    strokeWidth = 2f
-                )
-            }
-            .padding(top = 10.dp, bottom = 10.dp)
-    ) {
-        IconButton(
-            modifier = Modifier.align(Alignment.CenterStart),
-            onClick = {
-                onBack()
-            }
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "back button"
-            )
-        }
+    PockonTopAppBar(
+        title = {
         Text(
-            modifier = Modifier.align(Alignment.Center),
             text = stringResource(id = R.string.txt_noti_of_imminent_use),
             fontSize = 16.sp,
         )
-    }
+        },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "back button"
+                )
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+        showBottomDivider = true
+    )
 }
 
 // 사용 금액 입력 다이얼로그

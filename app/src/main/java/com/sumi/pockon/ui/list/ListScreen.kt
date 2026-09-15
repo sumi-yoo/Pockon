@@ -6,6 +6,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import com.sumi.pockon.R
+import com.sumi.pockon.ui.common.PockonTopAppBar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -727,30 +728,20 @@ fun ConfirmDialog(text: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
 
 @Composable
 fun ListScreenTopBar(title: Int, actionText: Int, onDropDown: (Int) -> Unit, onClick: () -> Unit) {
-    // topbar
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.primary)
-            .padding(10.dp)
-            .padding(top = 10.dp, bottom = 10.dp)
-    ) {
-        Box(modifier = Modifier.align(Alignment.Center)) {
+    PockonTopAppBar(
+        title = {
             TopAppBarDropDownMenu(title) { title ->
                 onDropDown(title)
             }
+        },
+        actions = {
+            Text(
+                modifier = Modifier.clickable(onClick = onClick),
+                text = stringResource(id = actionText),
+                fontSize = 14.sp
+            )
         }
-        Text(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 15.dp)
-                .clickable {
-                    onClick()
-                },
-            text = stringResource(id = actionText),
-            fontSize = 14.sp
-        )
-    }
+    )
 }
 
 @Composable

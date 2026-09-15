@@ -73,6 +73,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.sumi.pockon.util.DateTransformation
 import com.sumi.pockon.R
+import com.sumi.pockon.ui.common.PockonTopAppBar
 import com.sumi.pockon.ui.loading.LoadingScreen
 import com.sumi.pockon.util.formatDateToYYYYMMDD
 import com.sumi.pockon.util.getBitmapFromUri
@@ -382,29 +383,24 @@ fun GiftImage(
 
 @Composable
 fun AddGiftScreenTopBar(onBack: () -> Unit) {
-    // topbar
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 10.dp, bottom = 10.dp)
-    ) {
-        IconButton(
-            modifier = Modifier.align(Alignment.CenterStart),
-            onClick = {
-                onBack()
-            }
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "back button"
-            )
-        }
+    PockonTopAppBar(
+        title = {
         Text(
-            modifier = Modifier.align(Alignment.Center),
             text = stringResource(id = R.string.title_add_gift),
             fontSize = 16.sp,
         )
-    }
+        },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "back button"
+                )
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+        showBottomDivider = true
+    )
 }
 
 @Composable
