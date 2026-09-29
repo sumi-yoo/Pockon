@@ -8,7 +8,8 @@ import com.google.gson.Gson
 
 @Database(
     entities = [BrandEntity::class],
-    version = 1
+    version = 1,
+    exportSchema = false
 )
 @TypeConverters(DateListConverters::class)
 abstract class BrandDatabase : RoomDatabase() {
