@@ -144,7 +144,7 @@ fun MapScreen(onBack: () -> Unit, onDetail: (String) -> Unit) {
 }
 
 @Composable
-fun NaverMapWithLiveLocation(
+private fun NaverMapWithLiveLocation(
     fusedLocationClient: FusedLocationProviderClient,
     mapViewModel: MapViewModel,
     displayInfoList: List<Pair<BrandLocation, List<Gift>>>,
@@ -237,7 +237,7 @@ fun NaverMapWithLiveLocation(
 
                 // 마커 표시
                 displayInfoList.forEachIndexed { index, info ->
-                    val marker = markerRefs[info.first.id] ?: Marker().apply {
+                    markerRefs.getOrPut(info.first.id) { Marker().apply {
                         position = LatLng(info.first.y.toDouble(), info.first.x.toDouble())
                         width = if (index == mapViewModel.selectedMarkerIndex.value) 80 else 70
                         height = if (index == mapViewModel.selectedMarkerIndex.value) 110 else 100
@@ -283,7 +283,7 @@ fun NaverMapWithLiveLocation(
                             }
                             true
                         }
-                    }.also { markerRefs[info.first.id] = it }
+                    } }
                 }
 
                 if (!isInitialSelectedMarkerCentered) {
@@ -314,7 +314,7 @@ fun NaverMapWithLiveLocation(
         // 내 위치 버튼
         IconButton(
             onClick = {
-                mapView.getMapAsync { map ->
+                mapView.getMapAsync { _ ->
                     fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                         location?.let {
                             mapViewModel.updateCurrentLocation(LatLng(it.latitude, it.longitude))
@@ -372,7 +372,7 @@ fun NaverMapWithLiveLocation(
 
 
 @Composable
-fun rememberMapViewWithLifecycle(): MapView {
+private fun rememberMapViewWithLifecycle(): MapView {
     val context = LocalContext.current
     val mapView = remember {
         MapView(context).apply {
