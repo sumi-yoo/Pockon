@@ -77,8 +77,10 @@ class MapViewModel @Inject constructor(
         brandInfoList.forEach { (keyword, documents) ->
             documents.forEach { document ->
                 // 가장 가까운곳 뽑아내기
-                if (nearestDoc == null) nearestDoc = document
-                else if (nearestDoc!!.distance.toDouble() > document.distance.toDouble()) nearestDoc = document
+                val currentNearest = nearestDoc
+                if (currentNearest == null || currentNearest.distance.toDouble() > document.distance.toDouble()) {
+                    nearestDoc = document
+                }
 
                 if (mappingList.keys.contains(document)) mappingList[document]?.add(keyword)
                 else mappingList[document] = mutableSetOf(keyword)

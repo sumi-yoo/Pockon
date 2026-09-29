@@ -144,9 +144,8 @@ class ListViewModel @Inject constructor(
         val beforeFilters = mutableListOf<String>()
 
         _uiState.value.chipElement.keys.forEach { key ->
-            val state = _uiState.value.chipElement[key]
-            if (targetList.contains(key)) beforeElements[key] = !state!! else beforeElements[key] =
-                state!!
+            val state = _uiState.value.chipElement[key] ?: false
+            beforeElements[key] = if (targetList.contains(key)) !state else state
 
             if (targetList.contains("") && key.isNotEmpty()) { // 전체 클릭
                 beforeElements[key] = false
@@ -249,13 +248,13 @@ class ListViewModel @Inject constructor(
             return
         }
 
-        if (removeGift == null || removeGift?.id?.isEmpty() == true) {
+        val gift = removeGift
+        if (gift == null || gift.id.isEmpty()) {
             _events.tryEmit(ListEvent.GiftDeleteFailed)
             return
         }
-        val uid = removeGift!!.uid
-        val id = removeGift!!.id
-        val gift = removeGift!!.copy()
+        val uid = gift.uid
+        val id = gift.id
         removeGift = null
         viewModelScope.launch {
             val result = deleteGiftUseCase(isGuestMode, uid, id)

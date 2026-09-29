@@ -76,9 +76,10 @@ fun MapScreen(onBack: () -> Unit, onDetail: (String) -> Unit) {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (detailGift != null) {
+        val selectedGift = detailGift
+        if (selectedGift != null) {
             // 상세보기
-            DetailScreen(id = detailGift!!.id) {
+            DetailScreen(id = selectedGift.id) {
                 detailGift = null
             }
         } else {
