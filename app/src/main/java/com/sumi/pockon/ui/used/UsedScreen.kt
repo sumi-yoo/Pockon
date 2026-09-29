@@ -67,7 +67,7 @@ import com.sumi.pockon.R
 import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.ui.loading.LoadingScreen
 import com.sumi.pockon.ui.detail.UsedStamp
-import com.sumi.pockon.ui.list.ConfirmDialog
+import com.sumi.pockon.ui.common.PockonConfirmDialog
 import com.sumi.pockon.util.formatString
 import kotlinx.coroutines.flow.collectLatest
 
@@ -236,7 +236,7 @@ fun UsedScreen(onDetail: (String) -> Unit, onBack: () -> Unit) {
     }
 
     if (showRemoveDlg) {
-        ConfirmDialog(text = R.string.dlg_msg_delete, onConfirm = {
+        PockonConfirmDialog(message = R.string.dlg_msg_delete, onConfirm = {
             showRemoveDlg = false
             usedViewModel.deleteSelection()
         }, onDismiss = {
@@ -253,7 +253,7 @@ fun UsedScreen(onDetail: (String) -> Unit, onBack: () -> Unit) {
 
 /** 기프티콘 각각의 카드*/
 @Composable
-fun UsedGiftItem(
+private fun UsedGiftItem(
     gift: Gift, formattedEndDate: String, isEdit: Boolean, isCheck: Boolean, onClick: () -> Unit
 ) {
     Box(modifier = Modifier

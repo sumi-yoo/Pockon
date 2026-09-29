@@ -6,6 +6,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import com.sumi.pockon.R
+import com.sumi.pockon.ui.common.PockonConfirmDialog
+import com.sumi.pockon.ui.common.NetworkErrorDialog
 import com.sumi.pockon.ui.common.PockonTopAppBar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -168,8 +170,8 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
     }
 
     if (showRemoveDlg) {
-        ConfirmDialog(
-            text = R.string.dlg_msg_delete,
+        PockonConfirmDialog(
+            message = R.string.dlg_msg_delete,
             onConfirm = {
                 showRemoveDlg = false
                 isLoading(true)
@@ -186,16 +188,10 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
         )
     }
 
-    // NoInternetDialog
-    if (uiState.isShowNoInternetDialog) {
-        AlertDialog.Builder(context)
-            .setTitle(stringResource(id = R.string.txt_alert))
-            .setMessage(stringResource(id = R.string.msg_no_internet))
-            .setPositiveButton(stringResource(id = R.string.btn_confirm)) { dialog, which ->
-                listViewModel.changeNoInternetDialogState()
-            }
-            .show()
-    }
+    NetworkErrorDialog(
+        visible = uiState.isShowNoInternetDialog,
+        onDismiss = listViewModel::changeNoInternetDialogState
+    )
 
     Scaffold(
         snackbarHost = {
@@ -536,7 +532,7 @@ fun GiftItem(
 }
 
 @Composable
-fun TopAppBarDropDownMenu(topTitle: Int, setTopTitle: (Int) -> Unit) {
+private fun TopAppBarDropDownMenu(topTitle: Int, setTopTitle: (Int) -> Unit) {
     val expanded = remember {
         mutableStateOf(false)
     }
@@ -616,118 +612,8 @@ fun TopAppBarDropDownMenu(topTitle: Int, setTopTitle: (Int) -> Unit) {
     }
 }
 
-// 확인 다이얼로그
 @Composable
-fun ConfirmDialog(text: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    Dialog(onDismissRequest = {}) {
-        Surface(
-            modifier = Modifier
-                .wrapContentWidth()
-                .wrapContentHeight(),
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.background,
-            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline) // 테두리 색상과 두께 지정
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // title
-                Icon(
-                    imageVector = Icons.Outlined.Info,
-                    contentDescription = "info",
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(10.dp)
-                )
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(color = MaterialTheme.colorScheme.outline)
-                )
-
-                // text
-                Text(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    text = stringResource(id = text),
-                    fontSize = 16.sp
-                )
-
-                // bottom button
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(color = MaterialTheme.colorScheme.outline)
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min)
-                ) {
-                    Button(
-                        onClick = { onConfirm() },
-                        shape = RectangleShape,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.background,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                            disabledContainerColor = MaterialTheme.colorScheme.outline,
-                            disabledContentColor = MaterialTheme.colorScheme.background
-                        ),
-                    ) {
-                        Text(
-                            text = stringResource(id = R.string.btn_confirm),
-                            textAlign = TextAlign.Center,
-                            style = TextStyle(
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Normal
-                            )
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(1.dp)
-                            .background(color = MaterialTheme.colorScheme.outline)
-                    )
-
-                    Button(
-                        onClick = { onDismiss() },
-                        shape = RectangleShape,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.background,
-                            contentColor = MaterialTheme.colorScheme.error,
-                            disabledContainerColor = MaterialTheme.colorScheme.outline,
-                            disabledContentColor = MaterialTheme.colorScheme.background
-                        )
-                    ) {
-                        Text(
-                            text = stringResource(id = R.string.btn_cancel),
-                            textAlign = TextAlign.Center,
-                            style = TextStyle(
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Normal
-                            )
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ListScreenTopBar(title: Int, actionText: Int, onDropDown: (Int) -> Unit, onClick: () -> Unit) {
+private fun ListScreenTopBar(title: Int, actionText: Int, onDropDown: (Int) -> Unit, onClick: () -> Unit) {
     PockonTopAppBar(
         title = {
             TopAppBarDropDownMenu(title) { title ->
@@ -745,7 +631,7 @@ fun ListScreenTopBar(title: Int, actionText: Int, onDropDown: (Int) -> Unit, onC
 }
 
 @Composable
-fun SwipeToDismissItem(onDismiss: (Float) -> Unit, content: @Composable () -> Unit) {
+private fun SwipeToDismissItem(onDismiss: (Float) -> Unit, content: @Composable () -> Unit) {
     val animatableOffsetX = remember { Animatable(0f) } // 애니메이션을 위한 Animatable
     val screenWidth =
         LocalDensity.current.run { LocalConfiguration.current.screenWidthDp.dp.toPx() } // 화면의 너비 계산
@@ -804,7 +690,7 @@ fun SwipeToDismissItem(onDismiss: (Float) -> Unit, content: @Composable () -> Un
                                 onDismiss(animatableOffsetX.value) // 삭제 처리
                             }
                         },
-                        onHorizontalDrag = { change, dragAmount ->
+                        onHorizontalDrag = { _, dragAmount ->
                             scope.launch {
                                 animatableOffsetX.snapTo(animatableOffsetX.value + dragAmount) // 드래그 양만큼 offsetX 업데이트
                             }

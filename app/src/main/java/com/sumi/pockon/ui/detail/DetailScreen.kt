@@ -105,8 +105,9 @@ import com.sumi.pockon.util.DateTransformation
 import com.sumi.pockon.R
 import com.sumi.pockon.ui.loading.LoadingScreen
 import com.sumi.pockon.ui.add.CustomDatePickerDialog
-import com.sumi.pockon.ui.add.checkPhotoPermission
-import com.sumi.pockon.ui.list.ConfirmDialog
+import com.sumi.pockon.ui.common.PockonConfirmDialog
+import com.sumi.pockon.ui.common.GiftField
+import com.sumi.pockon.ui.common.NetworkErrorDialog
 import com.sumi.pockon.util.decimalFormat
 import com.sumi.pockon.util.getBitmapFromUri
 import com.sumi.pockon.util.thousandSeparatorTransformation
@@ -255,26 +256,11 @@ fun DetailScreen(id: String, isEditMode: Boolean = true, onBack: () -> Unit) {
                     detailViewModel.usedDt.value
                 ) {
                     if (detailViewModel.isEdit.value) {
-                        if (checkPhotoPermission(context)) {
-                            galleryLauncher.launch(
-                                PickVisualMediaRequest(
-                                    ActivityResultContracts.PickVisualMedia.ImageOnly
-                                )
+                        galleryLauncher.launch(
+                            PickVisualMediaRequest(
+                                ActivityResultContracts.PickVisualMedia.ImageOnly
                             )
-                        } else {
-                            AlertDialog.Builder(context)
-                                .setTitle(context.getString(R.string.txt_alert))
-                                .setMessage(context.getString(R.string.msg_no_photo_permission))
-                                .setPositiveButton(context.getString(R.string.btn_confirm)) { dialog, which ->
-                                    // 긍정 버튼 클릭 동작 처리
-                                    val intent = Intent(
-                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                        Uri.fromParts("package", context.packageName, null)
-                                    )
-                                    context.startActivity(intent)
-                                }
-                                .show()
-                        }
+                        )
                     } else if (detailViewModel.usedDt.value.isEmpty()) {
                         detailViewModel.setIsShowBottomSheet(true)
                     } else {
@@ -317,19 +303,19 @@ fun DetailScreen(id: String, isEditMode: Boolean = true, onBack: () -> Unit) {
                 }
 
                 // text field
-                for (i in inputDataList.indices) {
-                    if (detailViewModel.isEdit.value && i == 2 && !detailViewModel.isCheckedCash.value) continue
-                    if (!detailViewModel.isEdit.value && i == 2 && detailViewModel.cash.value.isEmpty()) continue
+                for (field in GiftField.entries) {
+                    if (detailViewModel.isEdit.value && field == GiftField.Amount && !detailViewModel.isCheckedCash.value) continue
+                    if (!detailViewModel.isEdit.value && field == GiftField.Amount && detailViewModel.cash.value.isEmpty()) continue
                     InputDataTextField(
-                        value = inputDataList[i],
-                        label = detailViewModel.getLabelList(i),
-                        index = i,
+                        value = inputDataList[field.index],
+                        label = detailViewModel.getLabelList(field.index),
+                        field = field,
                         detailViewModel.isEdit.value,
-                        onValueChange = { index, value ->
-                            detailViewModel.setGift(index, value)
+                        onValueChange = { changedField, value ->
+                            detailViewModel.setGift(changedField.index, value)
                         },
                         onDatePicker = {
-                            if (i == 3) {
+                            if (field == GiftField.ExpiryDate) {
                                 detailViewModel.changeDatePickerState()
                             }
                         }
@@ -405,8 +391,8 @@ fun DetailScreen(id: String, isEditMode: Boolean = true, onBack: () -> Unit) {
             }
         }
         if (detailViewModel.isShowCancelDialog.value) {
-            ConfirmDialog(
-                text = R.string.dlg_msg_use_cancel,
+            PockonConfirmDialog(
+                message = R.string.dlg_msg_use_cancel,
                 onConfirm = {
                     detailViewModel.setIsUsed(false)
                     detailViewModel.setIsShowCancelDialog(false)
@@ -447,21 +433,15 @@ fun DetailScreen(id: String, isEditMode: Boolean = true, onBack: () -> Unit) {
                 onCancel = { detailViewModel.changeDatePickerState() },
                 onConfirm = {
                     detailViewModel.changeDatePickerState()
-                    detailViewModel.setGift(3, value = it)
+                    detailViewModel.setGift(GiftField.ExpiryDate.index, value = it)
                 }
             )
         }
 
-        // NoInternetDialog
-        if (detailViewModel.isShowNoInternetDialog.value) {
-            AlertDialog.Builder(context)
-                .setTitle(stringResource(id = R.string.txt_alert))
-                .setMessage(stringResource(id = R.string.msg_no_internet))
-                .setPositiveButton(stringResource(id = R.string.btn_confirm)) { dialog, which ->
-                    detailViewModel.changeNoInternetDialogState()
-                }
-                .show()
-        }
+        NetworkErrorDialog(
+            visible = detailViewModel.isShowNoInternetDialog.value,
+            onDismiss = detailViewModel::changeNoInternetDialogState
+        )
     }
 
     if (detailViewModel.isShowIndicator.value) {
@@ -483,21 +463,22 @@ fun DetailScreen(id: String, isEditMode: Boolean = true, onBack: () -> Unit) {
             }
         }
     }
+
 }
 
 @Composable
 fun InputDataTextField(
     value: String,
     label: Int,
-    index: Int,
+    field: GiftField,
     isEdit: Boolean,
-    onValueChange: (Int, String) -> Unit,
+    onValueChange: (GiftField, String) -> Unit,
     onDatePicker: () -> Unit
 ) {
     var modifier = Modifier
         .fillMaxWidth()
         .padding(end = 0.dp, start = 0.dp, bottom = 5.dp, top = 0.dp)
-    if (index == 4) {
+    if (field == GiftField.Memo) {
         modifier = modifier.height(170.dp)
     }
 
@@ -507,32 +488,32 @@ fun InputDataTextField(
         value = value,
         textStyle = TextStyle(MaterialTheme.colorScheme.onPrimary),
         onValueChange = {
-            if (index == 0 && it.length > 100 || (index == 1 && it.length > 50)) return@OutlinedTextField
-            if (index == 4 && it.length > 300) return@OutlinedTextField
-            if (((it.length > 9 || it == "00") && index == 2) || (it.length > 8 && index == 3)) return@OutlinedTextField
+            if (field == GiftField.Name && it.length > 100 || (field == GiftField.Brand && it.length > 50)) return@OutlinedTextField
+            if (field == GiftField.Memo && it.length > 300) return@OutlinedTextField
+            if (((it.length > 9 || it == "00") && field == GiftField.Amount) || (it.length > 8 && field == GiftField.ExpiryDate)) return@OutlinedTextField
             // 공백만 입력했는지 확인 (중간 공백 허용, 전체 공백은 차단)
             if (it.isNotEmpty() && it.all { it.isWhitespace() }) return@OutlinedTextField
-            if (index == 2 || index == 3) {
+            if (field == GiftField.Amount || field == GiftField.ExpiryDate) {
                 val text = it.filter { char -> char.isDigit() }
-                onValueChange(index, text)
+                onValueChange(field, text)
             } else {
-                onValueChange(index, it)
+                onValueChange(field, it)
             }
         },
-        maxLines = if (index == 4) 50 else 1,
+        maxLines = if (field == GiftField.Memo) 50 else 1,
         label = {
             Text(
                 text = stringResource(id = label),
                 color = MaterialTheme.colorScheme.onPrimary
             )
         },
-        visualTransformation = when (index) {
-            2 -> thousandSeparatorTransformation(true)
-            3 -> DateTransformation()
+        visualTransformation = when (field) {
+            GiftField.Amount -> thousandSeparatorTransformation(true)
+            GiftField.ExpiryDate -> DateTransformation()
             else -> VisualTransformation.None
         },
         trailingIcon = {
-            if (index == 3 && isEdit) {
+            if (field == GiftField.ExpiryDate && isEdit) {
                 IconButton(onClick = { onDatePicker() }) {
                     Icon(
                         imageVector = Icons.Filled.DateRange,
@@ -542,7 +523,7 @@ fun InputDataTextField(
                 }
             }
         },
-        keyboardOptions = if (isEdit && (index == 2 || index == 3)) KeyboardOptions.Default.copy(
+        keyboardOptions = if (isEdit && (field == GiftField.Amount || field == GiftField.ExpiryDate)) KeyboardOptions.Default.copy(
             keyboardType = KeyboardType.Number
         ) else KeyboardOptions.Default
     )

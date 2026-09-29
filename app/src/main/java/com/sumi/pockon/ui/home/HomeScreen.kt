@@ -67,6 +67,8 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.sumi.pockon.R
+import com.sumi.pockon.ui.common.NetworkErrorDialog
+import com.sumi.pockon.ui.common.PockonMessageDialog
 import com.sumi.pockon.ui.common.PockonTopAppBar
 import com.sumi.pockon.domain.model.BrandLocation
 import com.sumi.pockon.domain.model.Gift
@@ -96,6 +98,8 @@ fun HomeScreen(
     var longitude: Double? by rememberSaveable { mutableStateOf(null) }
     var latitude: Double? by rememberSaveable { mutableStateOf(null) }
     var isShowNoInternetDialog by rememberSaveable { mutableStateOf(false) }
+    var isShowLocationPermissionDialog by rememberSaveable { mutableStateOf(false) }
+    var isShowLocationServiceDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         getLocation(context, fusedLocationClient)?.let { location ->
@@ -143,27 +147,9 @@ fun HomeScreen(
                                     if (!homeViewModel.isNetworkConnected()) {
                                         isShowNoInternetDialog = true
                                     } else if (!checkLocationPermission(context)) {
-                                        AlertDialog.Builder(context)
-                                            .setTitle(context.getString(R.string.txt_alert))
-                                            .setMessage(context.getString(R.string.msg_no_location_permission))
-                                            .setPositiveButton(context.getString(R.string.btn_confirm)) { dialog, which ->
-                                                // 긍정 버튼 클릭 동작 처리
-                                                val intent = Intent(
-                                                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                                    Uri.fromParts("package", context.packageName, null)
-                                                )
-                                                context.startActivity(intent)
-                                            }
-                                            .show()
+                                        isShowLocationPermissionDialog = true
                                     } else if (!isLocationEnabled(context)) {
-                                        AlertDialog.Builder(context)
-                                            .setTitle(context.getString(R.string.txt_alert))
-                                            .setMessage(context.getString(R.string.msg_no_location_permission))
-                                            .setPositiveButton(context.getString(R.string.btn_confirm)) { dialog, which ->
-                                                val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
-                                                context.startActivity(intent)
-                                            }
-                                            .show()
+                                        isShowLocationServiceDialog = true
                                     } else {
                                         scope.launch {
                                             getLocation(context, fusedLocationClient)?.let { location ->
@@ -284,15 +270,33 @@ fun HomeScreen(
         }
     }
 
-    // NoInternetDialog
-    if (isShowNoInternetDialog) {
-        AlertDialog.Builder(context)
-            .setTitle(stringResource(id = R.string.txt_alert))
-            .setMessage(stringResource(id = R.string.msg_no_internet))
-            .setPositiveButton(stringResource(id = R.string.btn_confirm)) { dialog, which ->
-                isShowNoInternetDialog = false
-            }
-            .show()
+    NetworkErrorDialog(
+        visible = isShowNoInternetDialog,
+        onDismiss = { isShowNoInternetDialog = false }
+    )
+
+    if (isShowLocationPermissionDialog) {
+        PockonMessageDialog(
+            message = R.string.msg_no_location_permission,
+            onConfirm = {
+                context.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+                )
+                isShowLocationPermissionDialog = false
+            },
+            onDismiss = { isShowLocationPermissionDialog = false }
+        )
+    }
+
+    if (isShowLocationServiceDialog) {
+        PockonMessageDialog(
+            message = R.string.msg_no_location_permission,
+            onConfirm = {
+                context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                isShowLocationServiceDialog = false
+            },
+            onDismiss = { isShowLocationServiceDialog = false }
+        )
     }
 
     isLoading(homeViewModel.isShowIndicator.value)
@@ -300,7 +304,7 @@ fun HomeScreen(
 
 /** 기프티콘 각각의 카드*/
 @Composable
-fun HomeGiftItem(
+private fun HomeGiftItem(
     gift: Gift,
     formattedEndDate: String,
     dDay: Pair<String, Boolean>,
@@ -421,7 +425,7 @@ fun HomeGiftItem(
 }
 
 @Composable
-fun EmptyNear(msg: Int) {
+private fun EmptyNear(msg: Int) {
     Box(
         modifier = Modifier
             .padding(top = 5.dp)
@@ -500,7 +504,7 @@ private suspend fun getLocation(
 }
 
 @Composable
-fun HomeScreenTopBar() {
+private fun HomeScreenTopBar() {
     PockonTopAppBar(
         title = {
         Text(

@@ -184,7 +184,7 @@ fun NotificationSettingScreen(onBack: () -> Unit) {
 }
 
 @Composable
-fun NotificationSettingScreenTopBar(onBack: () -> Unit) {
+private fun NotificationSettingScreenTopBar(onBack: () -> Unit) {
     PockonTopAppBar(
         title = {
         Text(
@@ -207,7 +207,7 @@ fun NotificationSettingScreenTopBar(onBack: () -> Unit) {
 
 // 사용 금액 입력 다이얼로그
 @Composable
-fun TimePickerWheelDialog(hour24: Int, minute: Int, onCancel: () -> Unit, onChanged: (Int, Int) -> Unit, onConfirm: () -> Unit) {
+private fun TimePickerWheelDialog(hour24: Int, minute: Int, onCancel: () -> Unit, onChanged: (Int, Int) -> Unit, onConfirm: () -> Unit) {
     Surface(
         modifier = Modifier
             .wrapContentWidth()
@@ -316,7 +316,7 @@ fun TimePickerWheelDialog(hour24: Int, minute: Int, onCancel: () -> Unit, onChan
 }
 
 @Composable
-fun TimePickerWithAmPmView(
+private fun TimePickerWithAmPmView(
     initialHour: Int,  // 24시간 기준
     initialMinute: Int,
     onTimeChange: (hour24: Int, minute: Int) -> Unit

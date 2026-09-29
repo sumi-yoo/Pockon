@@ -60,7 +60,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.sumi.pockon.R
 import com.sumi.pockon.ui.common.PockonTopAppBar
-import com.sumi.pockon.ui.list.ConfirmDialog
+import com.sumi.pockon.ui.common.PockonConfirmDialog
+import com.sumi.pockon.ui.common.NetworkErrorDialog
+import com.sumi.pockon.ui.common.PockonMessageDialog
 import kotlinx.coroutines.launch
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -76,6 +78,7 @@ fun SettingsScreen(
 
     var showLogoutDlg by remember { mutableStateOf(false) }
     var showRemoveDlg by remember { mutableStateOf(false) }
+    var showNotificationPermissionDialog by remember { mutableStateOf(false) }
     var checkedAlarm by rememberSaveable { mutableStateOf(settingViewModel.getIsNotiEndDt()) }
     var checkedPwd by rememberSaveable { mutableStateOf(settingViewModel.getIsAuthPin()) }
 
@@ -89,7 +92,7 @@ fun SettingsScreen(
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState)
         }
-    ) { innerPadding ->
+    ) {
         Column {
             SettingScreenTopBar()
             Column(
@@ -172,18 +175,7 @@ fun SettingsScreen(
                                 checkedAlarm = !checkedAlarm
                                 settingViewModel.onOffNotiEndDt(checkedAlarm)
                             } else {
-                                AlertDialog.Builder(context)
-                                    .setTitle(context.getString(R.string.txt_alert))
-                                    .setMessage(context.getString(R.string.msg_no_notification_permission))
-                                    .setPositiveButton(context.getString(R.string.btn_confirm)) { dialog, which ->
-                                        // 긍정 버튼 클릭 동작 처리
-                                        val intent = Intent(
-                                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                            Uri.fromParts("package", context.packageName, null)
-                                        )
-                                        context.startActivity(intent)
-                                    }
-                                    .show()
+                                showNotificationPermissionDialog = true
                             }
                         },
                         onClick = {
@@ -236,8 +228,8 @@ fun SettingsScreen(
         }
 
         if (showLogoutDlg) {
-            ConfirmDialog(
-                text = if (settingViewModel.getIsGuestMode()) {
+            PockonConfirmDialog(
+                message = if (settingViewModel.getIsGuestMode()) {
                     R.string.dlg_msg_logout_in_guest
                 } else {
                     R.string.dlg_msg_logout
@@ -256,8 +248,8 @@ fun SettingsScreen(
         }
 
         if (showRemoveDlg) {
-            ConfirmDialog(
-                text = R.string.dlg_msg_remove_account,
+            PockonConfirmDialog(
+                message = R.string.dlg_msg_remove_account,
                 onConfirm = {
                     showRemoveDlg = false
                     isLoading(true)
@@ -269,16 +261,23 @@ fun SettingsScreen(
             )
         }
 
-        // NoInternetDialog
-        if (settingViewModel.isShowNoInternetDialog.value) {
-            AlertDialog.Builder(context)
-                .setTitle(stringResource(id = R.string.txt_alert))
-                .setMessage(stringResource(id = R.string.msg_no_internet))
-                .setPositiveButton(stringResource(id = R.string.btn_confirm)) { dialog, which ->
-                    settingViewModel.changeNoInternetDialogState()
-                }
-                .show()
-        }
+        NetworkErrorDialog(
+            visible = settingViewModel.isShowNoInternetDialog.value,
+            onDismiss = settingViewModel::changeNoInternetDialogState
+        )
+    }
+
+    if (showNotificationPermissionDialog) {
+        PockonMessageDialog(
+            message = R.string.msg_no_notification_permission,
+            onConfirm = {
+                context.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+                )
+                showNotificationPermissionDialog = false
+            },
+            onDismiss = { showNotificationPermissionDialog = false }
+        )
     }
 
     LaunchedEffect(Unit) {
@@ -298,7 +297,7 @@ fun SettingsScreen(
 }
 
 @Composable
-fun SettingItem(
+private fun SettingItem(
     text: String,
     isTitle: Boolean = false,
     isSwitch: Boolean = false,
@@ -368,7 +367,7 @@ fun SettingItem(
 }
 
 @Composable
-fun SettingScreenTopBar() {
+private fun SettingScreenTopBar() {
     PockonTopAppBar(
         title = {
         Text(
@@ -381,7 +380,7 @@ fun SettingScreenTopBar() {
 
 
 @Composable
-fun CopyrightItem(name: String, url: String) {
+private fun CopyrightItem(name: String, url: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()

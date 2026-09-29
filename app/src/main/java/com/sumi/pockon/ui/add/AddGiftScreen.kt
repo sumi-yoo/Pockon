@@ -52,8 +52,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -73,6 +76,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.sumi.pockon.util.DateTransformation
 import com.sumi.pockon.R
+import com.sumi.pockon.ui.common.GiftField
+import com.sumi.pockon.ui.common.NetworkErrorDialog
 import com.sumi.pockon.ui.common.PockonTopAppBar
 import com.sumi.pockon.ui.loading.LoadingScreen
 import com.sumi.pockon.util.formatDateToYYYYMMDD
@@ -149,7 +154,7 @@ fun AddGifticon(onBack: (Boolean) -> Unit) {
                     .padding(top = 5.dp, bottom = 5.dp, start = 25.dp, end = 25.dp)
             ) {
                 // gift image
-                GiftImage(uiState.photo, context, galleryLauncher)
+                GiftImage(uiState.photo, galleryLauncher)
                 // cash
                 Box(
                     modifier = Modifier.fillMaxWidth()
@@ -186,17 +191,17 @@ fun AddGifticon(onBack: (Boolean) -> Unit) {
                     }
                 }
                 // text field
-                for (i in inputDataList.indices) {
-                    if (i == 2 && !uiState.isCheckedCash) continue
+                for (field in GiftField.entries) {
+                    if (field == GiftField.Amount && !uiState.isCheckedCash) continue
                     InputDataTextField(
-                        value = inputDataList[i],
-                        label = addViewModel.getLabelList(i),
-                        index = i,
-                        onValueChange = { index, value ->
-                            addViewModel.setGift(index, value)
+                        value = inputDataList[field.index],
+                        label = addViewModel.getLabelList(field.index),
+                        field = field,
+                        onValueChange = { changedField, value ->
+                            addViewModel.setGift(changedField.index, value)
                         },
                         onDatePicker = {
-                            if (i == 3) {
+                            if (field == GiftField.ExpiryDate) {
                                 addViewModel.changeDatePickerState()
                             }
                         }
@@ -237,7 +242,7 @@ fun AddGifticon(onBack: (Boolean) -> Unit) {
                 onCancel = { addViewModel.changeDatePickerState() },
                 onConfirm = {
                     addViewModel.changeDatePickerState()
-                    addViewModel.setGift(3, value = it)
+                    addViewModel.setGift(GiftField.ExpiryDate.index, value = it)
                 }
             )
         }
@@ -248,30 +253,24 @@ fun AddGifticon(onBack: (Boolean) -> Unit) {
         LoadingScreen()
     }
 
-    // NoInternetDialog
-    if (uiState.isShowNoInternetDialog) {
-        AlertDialog.Builder(context)
-            .setTitle(stringResource(id = R.string.txt_alert))
-            .setMessage(stringResource(id = R.string.msg_no_internet))
-            .setPositiveButton(stringResource(id = R.string.btn_confirm)) { dialog, which ->
-                addViewModel.changeNoInternetDialogState()
-            }
-            .show()
-    }
+    NetworkErrorDialog(
+        visible = uiState.isShowNoInternetDialog,
+        onDismiss = addViewModel::changeNoInternetDialogState
+    )
 }
 
 @Composable
 fun InputDataTextField(
     value: String,
     label: Int,
-    index: Int,
-    onValueChange: (Int, String) -> Unit,
+    field: GiftField,
+    onValueChange: (GiftField, String) -> Unit,
     onDatePicker: () -> Unit
 ) {
     var modifier = Modifier
         .fillMaxWidth()
         .padding(end = 0.dp, start = 0.dp, bottom = 5.dp, top = 0.dp)
-    if (index == 4) {
+    if (field == GiftField.Memo) {
         modifier = modifier.height(170.dp)
     }
 
@@ -280,32 +279,32 @@ fun InputDataTextField(
         value = value,
         textStyle = TextStyle(MaterialTheme.colorScheme.onPrimary),
         onValueChange = {
-            if (index == 0 && it.length > 100 || (index == 1 && it.length > 50)) return@OutlinedTextField
-            if (index == 4 && it.length > 300) return@OutlinedTextField
-            if (((it.length > 9 || it == "00") && index == 2) || (it.length > 8 && index == 3)) return@OutlinedTextField
+            if (field == GiftField.Name && it.length > 100 || (field == GiftField.Brand && it.length > 50)) return@OutlinedTextField
+            if (field == GiftField.Memo && it.length > 300) return@OutlinedTextField
+            if (((it.length > 9 || it == "00") && field == GiftField.Amount) || (it.length > 8 && field == GiftField.ExpiryDate)) return@OutlinedTextField
             // 공백만 입력했는지 확인 (중간 공백 허용, 전체 공백은 차단)
             if (it.isNotEmpty() && it.all { it.isWhitespace() }) return@OutlinedTextField
-            if (index == 2 || index == 3) {
+            if (field == GiftField.Amount || field == GiftField.ExpiryDate) {
                 val text = it.filter { char -> char.isDigit() }
-                onValueChange(index, text)
+                onValueChange(field, text)
             } else {
-                onValueChange(index, it)
+                onValueChange(field, it)
             }
         },
-        maxLines = if (index == 4) 50 else 1,
+        maxLines = if (field == GiftField.Memo) 50 else 1,
         label = {
             Text(
                 text = stringResource(id = label),
                 color = MaterialTheme.colorScheme.onPrimary
             )
         },
-        visualTransformation = when (index) {
-            2 -> thousandSeparatorTransformation(true)
-            3 -> DateTransformation()
+        visualTransformation = when (field) {
+            GiftField.Amount -> thousandSeparatorTransformation(true)
+            GiftField.ExpiryDate -> DateTransformation()
             else -> VisualTransformation.None
         },
         trailingIcon = {
-            if (index == 3) {
+            if (field == GiftField.ExpiryDate) {
                 IconButton(onClick = { onDatePicker() }) {
                     Icon(
                         imageVector = Icons.Filled.DateRange,
@@ -315,14 +314,13 @@ fun InputDataTextField(
                 }
             }
         },
-        keyboardOptions = if (index == 2 || index == 3) KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number) else KeyboardOptions.Default
+        keyboardOptions = if (field == GiftField.Amount || field == GiftField.ExpiryDate) KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number) else KeyboardOptions.Default
     )
 }
 
 @Composable
 fun GiftImage(
     selectedImage: Bitmap?,
-    context: Context,
     galleryLauncher: ManagedActivityResultLauncher<PickVisualMediaRequest, Uri?>
 ) {
     Row(
@@ -338,26 +336,11 @@ fun GiftImage(
                 .height(200.dp)
                 .background(MaterialTheme.colorScheme.outline)
                 .clickable {
-                    if (checkPhotoPermission(context)) {
-                        galleryLauncher.launch(
-                            PickVisualMediaRequest(
-                                ActivityResultContracts.PickVisualMedia.ImageOnly
-                            )
+                    galleryLauncher.launch(
+                        PickVisualMediaRequest(
+                            ActivityResultContracts.PickVisualMedia.ImageOnly
                         )
-                    } else {
-                        AlertDialog.Builder(context)
-                            .setTitle(context.getString(R.string.txt_alert))
-                            .setMessage(context.getString(R.string.msg_no_photo_permission))
-                            .setPositiveButton(context.getString(R.string.btn_confirm)) { dialog, which ->
-                                // 긍정 버튼 클릭 동작 처리
-                                val intent = Intent(
-                                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                    Uri.fromParts("package", context.packageName, null)
-                                )
-                                context.startActivity(intent)
-                            }
-                            .show()
-                    }
+                    )
                 }
         ) {
             if (selectedImage == null) {
@@ -379,6 +362,7 @@ fun GiftImage(
             }
         }
     }
+
 }
 
 @Composable
@@ -449,26 +433,4 @@ fun CustomDatePickerDialog(
 
     // 다이얼로그 표시
     datePickerDialog.show()
-}
-
-/** 사진 권한 체크 */
-fun checkPhotoPermission(context: Context): Boolean {
-//    val permissions = if (Build.VERSION.SDK_INT >= 33) {
-//        arrayOf(
-//            Manifest.permission.READ_MEDIA_IMAGES,
-//        )
-//    } else {
-//        arrayOf(
-//            Manifest.permission.READ_EXTERNAL_STORAGE,
-//        )
-//    }
-//
-//    return permissions.all {
-//        ContextCompat.checkSelfPermission(
-//            context,
-//            it
-//        ) == PackageManager.PERMISSION_GRANTED
-//    }
-
-    return true
 }
