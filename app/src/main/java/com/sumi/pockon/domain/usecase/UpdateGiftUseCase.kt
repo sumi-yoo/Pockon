@@ -10,10 +10,10 @@ class UpdateGiftUseCase @Inject constructor(
     suspend operator fun invoke(
         isGuestMode: Boolean,
         gift: Gift,
-        shouldUploadPhoto: Boolean
+        photoBytes: ByteArray? = null
     ): Result<Unit> = giftRepository.updateGift(
         isGuestMode = isGuestMode,
         gift = gift,
-        shouldUploadPhoto = shouldUploadPhoto
+        photoBytes = photoBytes
     )
 }

@@ -8,6 +8,7 @@ import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
 import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.domain.usecase.AddGiftUseCase
 import com.sumi.pockon.util.NetworkMonitor
+import com.sumi.pockon.util.toByteArray
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,7 +66,6 @@ class AddViewModel @Inject constructor(
             Gift(
                 uid = uid,
                 name = state.name.trim(),
-                photo = state.photo,
                 brand = state.brand.trim(),
                 endDt = state.endDate,
                 addDt = addDate,
@@ -77,7 +77,6 @@ class AddViewModel @Inject constructor(
             Gift(
                 uid = uid,
                 name = state.name.trim(),
-                photo = state.photo,
                 brand = state.brand.trim(),
                 endDt = state.endDate,
                 addDt = addDate,
@@ -86,7 +85,10 @@ class AddViewModel @Inject constructor(
             )
         }
         viewModelScope.launch {
-            val result = runCatching { addGiftUseCase(isGuestMode, gift) }.getOrNull()
+            val photoBytes = state.photo?.toByteArray()
+            val result = photoBytes?.let {
+                runCatching { addGiftUseCase(isGuestMode, gift, it) }.getOrNull()
+            }
             _uiState.value = _uiState.value.copy(isLoading = false)
             _events.emit(
                 if (result?.isSuccess == true) AddGiftEvent.Saved else AddGiftEvent.SaveFailed

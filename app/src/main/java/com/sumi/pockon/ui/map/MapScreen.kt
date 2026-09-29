@@ -68,6 +68,7 @@ import com.sumi.pockon.util.getDday
 fun MapScreen(onBack: () -> Unit, onDetail: (String) -> Unit) {
     val mapViewModel = hiltViewModel<MapViewModel>()
     val displayInfoList by mapViewModel.displayInfoList.collectAsState()
+    val photoPaths by mapViewModel.photoPaths.collectAsState()
     val context = LocalContext.current
     var detailGift by rememberSaveable { mutableStateOf<Gift?>(null) }
     var isTopScroll by rememberSaveable { mutableStateOf<Boolean?>(false) }
@@ -122,6 +123,7 @@ fun MapScreen(onBack: () -> Unit, onDetail: (String) -> Unit) {
                             val gift = point[pageIndex]
                             GiftItem(isEdit = false,
                                 gift = gift,
+                                photoPath = photoPaths[gift.id],
                                 formattedEndDate = formatString(gift.endDt),
                                 dDay = getDday(gift.endDt),
                                 isCheck = false,

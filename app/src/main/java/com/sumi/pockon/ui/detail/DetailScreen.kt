@@ -253,6 +253,7 @@ fun DetailScreen(id: String, isEditMode: Boolean = true, onBack: () -> Unit) {
                 GiftImage(
                     detailViewModel.isEdit.value,
                     detailViewModel.photo.value,
+                    detailViewModel.photoPath.value,
                     detailViewModel.usedDt.value
                 ) {
                     if (detailViewModel.isEdit.value) {
@@ -375,7 +376,7 @@ fun DetailScreen(id: String, isEditMode: Boolean = true, onBack: () -> Unit) {
 
         if (detailViewModel.isShowBottomSheet.value) {
             GiftBottomSheet(
-                image = detailViewModel.photo.value,
+                image = detailViewModel.photo.value ?: detailViewModel.photoPath.value,
                 isVisible = detailViewModel.isShowBottomSheet.value
             ) { isUsed ->
                 if (isUsed) {
@@ -530,7 +531,13 @@ fun InputDataTextField(
 }
 
 @Composable
-fun GiftImage(isEdit: Boolean, selectedImage: Bitmap?, usedDt: String, onClick: () -> Unit) {
+fun GiftImage(
+    isEdit: Boolean,
+    selectedImage: Bitmap?,
+    photoPath: String?,
+    usedDt: String,
+    onClick: () -> Unit
+) {
     Row(
         horizontalArrangement = Arrangement.Center,
         modifier = Modifier
@@ -547,7 +554,7 @@ fun GiftImage(isEdit: Boolean, selectedImage: Bitmap?, usedDt: String, onClick: 
                     onClick()
                 }
         ) {
-            if (selectedImage == null) {
+            if (selectedImage == null && photoPath == null) {
                 Image(
                     modifier = Modifier
                         .width(90.dp)
@@ -560,7 +567,7 @@ fun GiftImage(isEdit: Boolean, selectedImage: Bitmap?, usedDt: String, onClick: 
                 AsyncImage(
                     modifier = Modifier
                         .fillMaxSize(),
-                    model = selectedImage,
+                    model = selectedImage ?: photoPath,
                     contentDescription = "detail photo",
                     contentScale = ContentScale.Crop
                 )
@@ -820,7 +827,7 @@ fun UseCashDialog(remainCash: String, onCancel: () -> Unit, onConfirm: (Int) -> 
 }
 
 @Composable
-fun GiftBottomSheet(image: Bitmap?, isVisible: Boolean, onDismiss: (Boolean) -> Unit) {
+fun GiftBottomSheet(image: Any?, isVisible: Boolean, onDismiss: (Boolean) -> Unit) {
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val screenHeightToPx =
         LocalDensity.current.run { LocalConfiguration.current.screenHeightDp.dp.toPx() }
@@ -967,7 +974,7 @@ fun GiftBottomSheet(image: Bitmap?, isVisible: Boolean, onDismiss: (Boolean) -> 
 }
 
 @Composable
-fun ImageFullScreenDialog(image: Bitmap?, onDismiss: () -> Unit) {
+fun ImageFullScreenDialog(image: Any?, onDismiss: () -> Unit) {
     var scale by remember { mutableFloatStateOf(1f) }
 
     Box(

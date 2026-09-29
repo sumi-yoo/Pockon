@@ -1,6 +1,7 @@
 package com.sumi.pockon.di
 
 import com.sumi.pockon.data.repository.GiftRepositoryImpl
+import com.sumi.pockon.data.repository.GiftPhotoRepositoryImpl
 import com.sumi.pockon.data.repository.AlarmRepositoryImpl
 import com.sumi.pockon.data.repository.AppPreferencesRepositoryImpl
 import com.sumi.pockon.data.repository.LoginRepository
@@ -10,6 +11,7 @@ import com.sumi.pockon.data.repository.UserSessionRepositoryImpl
 import com.sumi.pockon.data.repository.BrandRepositoryImpl
 import com.sumi.pockon.domain.repository.BrandRepository
 import com.sumi.pockon.domain.repository.GiftRepository
+import com.sumi.pockon.domain.repository.GiftPhotoRepository
 import com.sumi.pockon.domain.repository.AuthRepository
 import com.sumi.pockon.domain.repository.AlarmRepository
 import com.sumi.pockon.domain.repository.AppPreferencesRepository
@@ -58,4 +60,9 @@ abstract class RepositoryModule {
     abstract fun bindGiftRepository(
         giftRepositoryImpl: GiftRepositoryImpl
     ): GiftRepository
+
+    @Binds
+    abstract fun bindGiftPhotoRepository(
+        giftPhotoRepositoryImpl: GiftPhotoRepositoryImpl
+    ): GiftPhotoRepository
 }

@@ -10,6 +10,7 @@ import com.sumi.pockon.domain.model.BrandLocation
 import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.domain.usecase.GetCachedBrandsUseCase
 import com.sumi.pockon.domain.usecase.ObserveAvailableGiftsUseCase
+import com.sumi.pockon.domain.repository.GiftPhotoRepository
 import com.sumi.pockon.util.getDdayInt
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -23,11 +24,14 @@ import javax.inject.Inject
 @HiltViewModel
 class MapViewModel @Inject constructor(
     private val getCachedBrandsUseCase: GetCachedBrandsUseCase,
-    private val observeAvailableGiftsUseCase: ObserveAvailableGiftsUseCase
+    private val observeAvailableGiftsUseCase: ObserveAvailableGiftsUseCase,
+    private val giftPhotoRepository: GiftPhotoRepository
 ) : ViewModel() {
 
     private val _displayInfoList = MutableStateFlow<List<Pair<BrandLocation, List<Gift>>>>(emptyList())
     val displayInfoList: StateFlow<List<Pair<BrandLocation, List<Gift>>>> = _displayInfoList.asStateFlow()
+    private val _photoPaths = MutableStateFlow<Map<String, String>>(emptyMap())
+    val photoPaths: StateFlow<Map<String, String>> = _photoPaths.asStateFlow()
     private val _cameraPosition = mutableStateOf<CameraPosition?>(null)
     val cameraPosition: State<CameraPosition?> = _cameraPosition
 
@@ -52,6 +56,7 @@ class MapViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             observeAvailableGiftsUseCase().collectLatest { allGift ->
                 giftList = allGift
+                _photoPaths.value = giftPhotoRepository.getPhotoPaths(allGift.map(Gift::id))
                 if (allGift.isNotEmpty()) {
                     getAllBrands()
                 } else {

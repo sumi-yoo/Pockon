@@ -6,6 +6,7 @@ import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
 import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.domain.usecase.DeleteGiftsUseCase
 import com.sumi.pockon.domain.usecase.ObserveUsedGiftsUseCase
+import com.sumi.pockon.domain.repository.GiftPhotoRepository
 import com.sumi.pockon.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +25,7 @@ import javax.inject.Inject
 @HiltViewModel
 class UsedViewModel @Inject constructor(
     private val observeUsedGiftsUseCase: ObserveUsedGiftsUseCase,
+    private val giftPhotoRepository: GiftPhotoRepository,
     private val deleteGiftsUseCase: DeleteGiftsUseCase,
     private val getUserSessionUseCase: GetUserSessionUseCase,
     private val networkMonitor: NetworkMonitor
@@ -47,6 +49,7 @@ class UsedViewModel @Inject constructor(
     private fun observeGiftList() {
         viewModelScope.launch(Dispatchers.IO) {
             observeUsedGiftsUseCase().collectLatest { allGift ->
+                val photoPaths = giftPhotoRepository.getPhotoPaths(allGift.map(Gift::id))
                 if (allGift.isNotEmpty()) {
                     val dateFormat = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
 
@@ -55,7 +58,7 @@ class UsedViewModel @Inject constructor(
                             .thenBy { it.brand }
                             .thenBy { it.name }
                             .thenBy { it.endDt.ifEmpty { "99991231" } }
-                    ))
+                    ), photoPaths = photoPaths)
                 } else {
                     _uiState.value = UsedUiState()
                 }
@@ -132,6 +135,7 @@ class UsedViewModel @Inject constructor(
 
 data class UsedUiState(
     val giftList: List<Gift> = emptyList(),
+    val photoPaths: Map<String, String> = emptyMap(),
     val checkedGiftIds: List<String> = emptyList(),
     val isAllSelect: Boolean = false,
     val isLoading: Boolean = false

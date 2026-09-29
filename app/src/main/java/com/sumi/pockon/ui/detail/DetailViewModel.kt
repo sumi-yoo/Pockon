@@ -13,7 +13,9 @@ import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
 import com.sumi.pockon.domain.usecase.UpdateGiftFavoriteUseCase
 import com.sumi.pockon.domain.usecase.UpdateGiftUseCase
 import com.sumi.pockon.domain.usecase.ObserveGiftUseCase
+import com.sumi.pockon.domain.repository.GiftPhotoRepository
 import com.sumi.pockon.util.NetworkMonitor
+import com.sumi.pockon.util.toByteArray
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -29,6 +31,7 @@ import javax.inject.Inject
 @HiltViewModel
 class DetailViewModel @Inject constructor(
     private val observeGiftUseCase: ObserveGiftUseCase,
+    private val giftPhotoRepository: GiftPhotoRepository,
     private val updateGiftUseCase: UpdateGiftUseCase,
     private val updateGiftFavoriteUseCase: UpdateGiftFavoriteUseCase,
     private val cancelGiftAlarmUseCase: CancelGiftAlarmUseCase,
@@ -46,6 +49,8 @@ class DetailViewModel @Inject constructor(
     val gift: State<Gift> = _gift
     private val _photo = mutableStateOf<Bitmap?>(null)
     val photo: State<Bitmap?> = _photo
+    private val _photoPath = mutableStateOf<String?>(null)
+    val photoPath: State<String?> = _photoPath
     private val _name = mutableStateOf("")
     val name: State<String> = _name
     private val _brand = mutableStateOf("")
@@ -81,6 +86,7 @@ class DetailViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             observeGiftUseCase(id).collectLatest { gift ->
                 setGift(gift)
+                _photoPath.value = giftPhotoRepository.getPhotoPath(gift.id)
             }
         }
     }
@@ -93,7 +99,6 @@ class DetailViewModel @Inject constructor(
         _endDate.value = gift.endDt
         _memo.value = gift.memo
         _usedDt.value = gift.usedDt
-        _photo.value = gift.photo
         _isCheckedCash.value = gift.cash.isNotEmpty()
         _isFavorite.value = gift.isFavorite
     }
@@ -167,7 +172,6 @@ class DetailViewModel @Inject constructor(
             Gift(
                 id = _gift.value.id,
                 uid = _gift.value.uid,
-                photo = _photo.value,
                 name = _name.value.trim(),
                 brand = _brand.value.trim(),
                 endDt = _endDate.value,
@@ -181,7 +185,6 @@ class DetailViewModel @Inject constructor(
             Gift(
                 id = _gift.value.id,
                 uid = _gift.value.uid,
-                photo = _photo.value,
                 name = _name.value.trim(),
                 brand = _brand.value.trim(),
                 endDt = _endDate.value,
@@ -198,7 +201,7 @@ class DetailViewModel @Inject constructor(
                     updateGiftUseCase(
                         isGuestMode = isGuestMode,
                         gift = updateGift,
-                        shouldUploadPhoto = true
+                        photoBytes = _photo.value?.toByteArray()
                     )
                 }.getOrNull()
 
@@ -243,7 +246,7 @@ class DetailViewModel @Inject constructor(
                     updateGiftUseCase(
                         isGuestMode = isGuestMode,
                         gift = gift,
-                        shouldUploadPhoto = false
+                        photoBytes = null
                     )
                 }.getOrNull()
 
@@ -274,7 +277,7 @@ class DetailViewModel @Inject constructor(
 
     fun isValid(): Int? {
         var msg: Int? = null
-        if (_photo.value == null) {
+        if (_photo.value == null && _photoPath.value == null) {
             msg = R.string.msg_no_photo
         } else if (_name.value.isEmpty()) {
             msg = R.string.msg_no_name
@@ -296,7 +299,7 @@ class DetailViewModel @Inject constructor(
         _endDate.value = _gift.value.endDt
         _memo.value = _gift.value.memo
         _usedDt.value = _gift.value.usedDt
-        _photo.value = _gift.value.photo
+        _photo.value = null
         _isCheckedCash.value = _gift.value.cash.isNotEmpty()
         _isFavorite.value = _gift.value.isFavorite
     }

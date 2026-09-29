@@ -18,12 +18,12 @@ interface GiftRepository {
 
     suspend fun syncGifts(uid: String): Result<Unit>
 
-    suspend fun addGift(isGuestMode: Boolean, gift: Gift): Result<Unit>
+    suspend fun addGift(isGuestMode: Boolean, gift: Gift, photoBytes: ByteArray): Result<Unit>
 
     suspend fun updateGift(
         isGuestMode: Boolean,
         gift: Gift,
-        shouldUploadPhoto: Boolean
+        photoBytes: ByteArray? = null
     ): Result<Unit>
 
     suspend fun updateGiftFavorite(

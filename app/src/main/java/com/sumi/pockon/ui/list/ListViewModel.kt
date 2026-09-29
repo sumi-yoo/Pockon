@@ -12,6 +12,7 @@ import com.sumi.pockon.domain.usecase.DeleteGiftsUseCase
 import com.sumi.pockon.domain.usecase.SyncGiftListUseCase
 import com.sumi.pockon.domain.usecase.UpdateGiftUseCase
 import com.sumi.pockon.domain.usecase.ObserveAvailableGiftsUseCase
+import com.sumi.pockon.domain.repository.GiftPhotoRepository
 import com.sumi.pockon.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +32,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ListViewModel @Inject constructor(
     private val observeAvailableGiftsUseCase: ObserveAvailableGiftsUseCase,
+    private val giftPhotoRepository: GiftPhotoRepository,
     private val syncGiftListUseCase: SyncGiftListUseCase,
     private val updateGiftUseCase: UpdateGiftUseCase,
     private val deleteGiftUseCase: DeleteGiftUseCase,
@@ -71,10 +73,12 @@ class ListViewModel @Inject constructor(
     private fun observeGiftList() {
         viewModelScope.launch(Dispatchers.IO) {
             observeAvailableGiftsUseCase().collectLatest { allGift ->
+                val photoPaths = giftPhotoRepository.getPhotoPaths(allGift.map(Gift::id))
                 if (allGift.isNotEmpty()) {
                     _uiState.value = _uiState.value.copy(
                         giftList = allGift,
-                        copyGiftList = allGift
+                        copyGiftList = allGift,
+                        photoPaths = photoPaths
                     )
                     sortChips()
                     filterList()
@@ -83,6 +87,7 @@ class ListViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         giftList = emptyList(),
                         copyGiftList = emptyList(),
+                        photoPaths = emptyMap(),
                         chipElement = emptyMap(),
                         checkedGiftIds = emptyList(),
                         isAllSelect = false
@@ -230,7 +235,7 @@ class ListViewModel @Inject constructor(
             val result = updateGiftUseCase(
                 isGuestMode = isGuestMode,
                 gift = updateGift,
-                shouldUploadPhoto = false
+                photoBytes = null
             )
             if (result.isSuccess) {
                 cancelGiftAlarmUseCase(gift.id, getNotificationSettingsUseCase().daysBeforeExpiry)
@@ -342,6 +347,7 @@ class ListViewModel @Inject constructor(
 data class ListUiState(
     val giftList: List<Gift> = emptyList(),
     val copyGiftList: List<Gift> = emptyList(),
+    val photoPaths: Map<String, String> = emptyMap(),
     val chipElement: Map<String, Boolean> = emptyMap(),
     val topTitle: Int = R.string.top_app_bar_recent,
     val checkedGiftIds: List<String> = emptyList(),

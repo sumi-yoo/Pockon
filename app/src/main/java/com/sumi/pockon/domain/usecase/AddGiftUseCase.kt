@@ -7,6 +7,9 @@ import javax.inject.Inject
 class AddGiftUseCase @Inject constructor(
     private val giftRepository: GiftRepository
 ) {
-    suspend operator fun invoke(isGuestMode: Boolean, gift: Gift): Result<Unit> =
-        giftRepository.addGift(isGuestMode, gift)
+    suspend operator fun invoke(
+        isGuestMode: Boolean,
+        gift: Gift,
+        photoBytes: ByteArray
+    ): Result<Unit> = giftRepository.addGift(isGuestMode, gift, photoBytes)
 }

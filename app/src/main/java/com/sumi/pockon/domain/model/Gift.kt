@@ -1,12 +1,8 @@
 package com.sumi.pockon.domain.model
 
-import android.graphics.Bitmap
-import java.io.Serializable
-
 data class Gift(
     var id: String = "",
     val uid: String = "",
-    val photo: Bitmap? = null,
     val name: String = "",
     val brand: String = "",
     val endDt: String = "",
@@ -15,4 +11,4 @@ data class Gift(
     val usedDt: String = "",
     val cash: String = "",
     var isFavorite: Boolean = false
-) : Serializable
+)

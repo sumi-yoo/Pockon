@@ -201,10 +201,11 @@ fun HomeScreen(
                             key = { gift -> gift.first.id }
                         ) { gift ->
                             HomeGiftItem(
-                                gift.first,
-                                formatString(gift.first.endDt),
-                                getDday(gift.first.endDt),
-                                gift.second
+                                gift = gift.first,
+                                photoPath = homeViewModel.photoPaths.value[gift.first.id],
+                                formattedEndDate = formatString(gift.first.endDt),
+                                dDay = getDday(gift.first.endDt),
+                                document = gift.second
                             ) {
                                 onDetail(gift.first.id)
                             }
@@ -245,7 +246,12 @@ fun HomeScreen(
                             items = homeViewModel.favoriteGiftList.value,
                             key = { gift -> gift.id }
                         ) { gift ->
-                            HomeGiftItem(gift, formatString(gift.endDt), getDday(gift.endDt)) {
+                            HomeGiftItem(
+                                gift = gift,
+                                photoPath = homeViewModel.photoPaths.value[gift.id],
+                                formattedEndDate = formatString(gift.endDt),
+                                dDay = getDday(gift.endDt)
+                            ) {
                                 onDetail(gift.id)
                             }
                         }
@@ -306,6 +312,7 @@ fun HomeScreen(
 @Composable
 private fun HomeGiftItem(
     gift: Gift,
+    photoPath: String?,
     formattedEndDate: String,
     dDay: Pair<String, Boolean>,
     document: BrandLocation? = null,
@@ -342,7 +349,7 @@ private fun HomeGiftItem(
                                 strokeWidth = strokeWidth
                             )
                         },
-                    model = gift.photo,
+                    model = photoPath,
                     contentDescription = "add photo",
                     contentScale = ContentScale.Crop
                 )

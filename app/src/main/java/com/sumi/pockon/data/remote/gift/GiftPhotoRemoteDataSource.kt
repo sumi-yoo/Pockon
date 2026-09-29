@@ -1,8 +1,5 @@
 package com.sumi.pockon.data.remote.gift
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import com.sumi.pockon.util.toByteArray
 import com.google.firebase.storage.StorageReference
 import com.sumi.pockon.util.CryptoManager
 import kotlinx.coroutines.async
@@ -16,13 +13,14 @@ class GiftPhotoRemoteDataSource @Inject constructor(
     private val storageRef: StorageReference
 ) {
 
-    suspend fun uploadPhoto(data: Bitmap, uid: String, id: String) {
+    suspend fun uploadPhoto(data: ByteArray, uid: String, id: String) {
+        val encrypted = CryptoManager.encrypt(data, CryptoManager.generateKeyFromUID(uid))
         storageRef.child("$uid/$id.enc")
-            .putBytes(data.toByteArray(uid))
+            .putBytes(encrypted)
             .await()
     }
 
-    suspend fun downloadPhotos(uid: String, ids: List<String>): Map<String, Bitmap?> = coroutineScope {
+    suspend fun downloadPhotos(uid: String, ids: List<String>): Map<String, ByteArray?> = coroutineScope {
         val key = CryptoManager.generateKeyFromUID(uid)
 
         ids.map { id ->
@@ -31,8 +29,7 @@ class GiftPhotoRemoteDataSource @Inject constructor(
                     val encrypted = storageRef.child("$uid/$id.enc")
                         .getBytes(Long.MAX_VALUE)
                         .await()
-                    val decrypted = CryptoManager.decrypt(encrypted, key)
-                    BitmapFactory.decodeByteArray(decrypted, 0, decrypted.size)
+                    CryptoManager.decrypt(encrypted, key)
                 } catch (exception: CancellationException) {
                     throw exception
                 } catch (exception: Exception) {

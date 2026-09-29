@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -220,8 +220,9 @@ fun UsedScreen(onDetail: (String) -> Unit, onBack: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                itemsIndexed(items = uiState.giftList) { index, gift ->
+                items(items = uiState.giftList, key = { it.id }) { gift ->
                     UsedGiftItem(gift = gift,
+                        photoPath = uiState.photoPaths[gift.id],
                         formattedEndDate = formatString(gift.endDt),
                         isEdit = isEdit,
                         isCheck = uiState.checkedGiftIds.contains(gift.id),
@@ -254,7 +255,7 @@ fun UsedScreen(onDetail: (String) -> Unit, onBack: () -> Unit) {
 /** 기프티콘 각각의 카드*/
 @Composable
 private fun UsedGiftItem(
-    gift: Gift, formattedEndDate: String, isEdit: Boolean, isCheck: Boolean, onClick: () -> Unit
+    gift: Gift, photoPath: String?, formattedEndDate: String, isEdit: Boolean, isCheck: Boolean, onClick: () -> Unit
 ) {
     Box(modifier = Modifier
         .clip(shape = RoundedCornerShape(10.dp))
@@ -290,7 +291,7 @@ private fun UsedGiftItem(
                                     strokeWidth = strokeWidth
                                 )
                             },
-                        model = gift.photo,
+                        model = photoPath,
                         contentDescription = "add photo",
                         contentScale = ContentScale.Crop
                     )

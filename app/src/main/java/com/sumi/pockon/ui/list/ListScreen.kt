@@ -365,6 +365,7 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
                                             GiftItem(
                                                 isEdit = isEdit,
                                                 gift = gift,
+                                                photoPath = uiState.photoPaths[gift.id],
                                                 formattedEndDate = formatString(gift.endDt),
                                                 dDay = getDday(gift.endDt),
                                                 isCheck = uiState.checkedGiftIds.contains(
@@ -405,6 +406,7 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
 fun GiftItem(
     isEdit: Boolean,
     gift: Gift,
+    photoPath: String?,
     formattedEndDate: String,
     dDay: Pair<String, Boolean>,
     isCheck: Boolean,
@@ -448,7 +450,7 @@ fun GiftItem(
                                     strokeWidth = strokeWidth
                                 )
                             },
-                        model = gift.photo,
+                        model = photoPath,
                         contentDescription = "photo",
                         contentScale = ContentScale.Crop
                     )

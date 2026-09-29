@@ -16,6 +16,10 @@ class GiftLocalDataSource @Inject constructor(
 
     fun getGift(id: String) = giftDao.getGift(id)
 
+    fun getPhotoPaths(ids: List<String>) = giftDao.getPhotoPaths(ids)
+
+    fun getPhotoPath(id: String) = giftDao.getPhotoPath(id)
+
     fun getGiftCountByEndDate(endDt: String) = giftDao.getGiftCountByEndDate(endDt)
 
     fun getAllUsedGift() = giftDao.getAllUsedGift()

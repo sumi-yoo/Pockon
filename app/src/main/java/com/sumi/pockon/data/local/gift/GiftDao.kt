@@ -25,6 +25,12 @@ interface GiftDao {
     @Query("SELECT * FROM GiftEntity WHERE id = :id")
     fun getGift(id: String): Flow<GiftEntity>
 
+    @Query("SELECT id, photoPath FROM GiftEntity WHERE id IN (:ids)")
+    fun getPhotoPaths(ids: List<String>): List<GiftPhotoPath>
+
+    @Query("SELECT photoPath FROM GiftEntity WHERE id = :id")
+    fun getPhotoPath(id: String): String?
+
     @Query("SELECT COUNT(*) FROM GiftEntity WHERE endDt = :endDt")
     fun getGiftCountByEndDate(endDt: String): Int
 

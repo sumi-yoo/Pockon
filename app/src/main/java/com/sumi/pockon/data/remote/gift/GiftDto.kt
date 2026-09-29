@@ -18,6 +18,6 @@ data class GiftDto(
 
 fun Gift.toDto() = GiftDto(id, uid, name, brand, endDt, addDt, memo, usedDt, cash, isFavorite)
 
-fun GiftDto.toDomain(photo: android.graphics.Bitmap? = null) = Gift(
-    id, uid, photo, name, brand, endDt, addDt, memo, usedDt, cash, isFavorite
+fun GiftDto.toDomain() = Gift(
+    id, uid, name, brand, endDt, addDt, memo, usedDt, cash, isFavorite
 )
