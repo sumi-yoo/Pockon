@@ -4,18 +4,15 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sumi.pockon.domain.usecase.GetNotificationSettingsUseCase
 import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
-import com.sumi.pockon.domain.usecase.IsInitialGiftSyncRequiredUseCase
-import com.sumi.pockon.domain.usecase.MarkInitialGiftSyncCompletedUseCase
 import com.sumi.pockon.domain.model.BrandLocation
 import com.sumi.pockon.domain.model.Gift
-import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
-import com.sumi.pockon.domain.usecase.ScheduleGiftAlarmUseCase
+import com.sumi.pockon.domain.usecase.RefreshGiftAlarmsUseCase
 import com.sumi.pockon.domain.usecase.SyncGiftListUseCase
 import com.sumi.pockon.domain.usecase.SearchNearbyBrandUseCase
-import com.sumi.pockon.domain.usecase.ObserveAllGiftsUseCase
+import com.sumi.pockon.domain.repository.AppPreferencesRepository
 import com.sumi.pockon.domain.repository.GiftPhotoRepository
+import com.sumi.pockon.domain.repository.GiftRepository
 import com.sumi.pockon.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -25,16 +22,13 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val observeAllGiftsUseCase: ObserveAllGiftsUseCase,
+    private val giftRepository: GiftRepository,
     private val giftPhotoRepository: GiftPhotoRepository,
     private val syncGiftListUseCase: SyncGiftListUseCase,
     private val searchNearbyBrandUseCase: SearchNearbyBrandUseCase,
     private val getUserSessionUseCase: GetUserSessionUseCase,
-    private val isInitialGiftSyncRequiredUseCase: IsInitialGiftSyncRequiredUseCase,
-    private val markInitialGiftSyncCompletedUseCase: MarkInitialGiftSyncCompletedUseCase,
-    private val getNotificationSettingsUseCase: GetNotificationSettingsUseCase,
-    private val cancelGiftAlarmUseCase: CancelGiftAlarmUseCase,
-    private val scheduleGiftAlarmUseCase: ScheduleGiftAlarmUseCase,
+    private val appPreferencesRepository: AppPreferencesRepository,
+    private val refreshGiftAlarmsUseCase: RefreshGiftAlarmsUseCase,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
@@ -44,9 +38,7 @@ class HomeViewModel @Inject constructor(
     private val session = getUserSessionUseCase()
     private val uid = session.uid
     private val isGuestMode = session.isGuest
-    private val isFirstLogin = isInitialGiftSyncRequiredUseCase()
-    private val notificationSettings = getNotificationSettingsUseCase()
-
+    private val isFirstLogin = appPreferencesRepository.isInitialGiftSyncRequired()
     private var giftList: List<Gift> = listOf()
 
     private val _nearGiftList = mutableStateOf<List<Pair<Gift, BrandLocation>>>(listOf())
@@ -78,7 +70,7 @@ class HomeViewModel @Inject constructor(
             try {
                 val result = syncGiftListUseCase(uid)
                 if (result.isSuccess) {
-                    markInitialGiftSyncCompletedUseCase()
+                    appPreferencesRepository.markInitialGiftSyncCompleted()
                 }
             } finally {
                 _isShowIndicator.value = false
@@ -89,28 +81,18 @@ class HomeViewModel @Inject constructor(
     // 로컬 기프티콘 목록 변화 감지해서 가져오기
     private fun observeGiftList() {
         viewModelScope.launch(Dispatchers.IO) {
-            observeAllGiftsUseCase().collectLatest { allGift ->
+            giftRepository.observeAllGifts().collectLatest { allGift ->
                 _photoPaths.value = giftPhotoRepository.getPhotoPaths(allGift.map(Gift::id))
                 showGiftList(allGift)
             }
         }
     }
 
-    private fun showGiftList(allGift: List<Gift>) {
+    private suspend fun showGiftList(allGift: List<Gift>) {
         if (allGift.isNotEmpty()) {
             giftList = allGift
 
-            giftList.forEach { gift ->
-                cancelGiftAlarmUseCase(gift.id, notificationSettings.daysBeforeExpiry)
-                if (notificationSettings.isEnabled && gift.usedDt.isEmpty()) {
-                    // 알림 등록
-                    scheduleGiftAlarmUseCase(
-                        gift,
-                        notificationSettings.daysBeforeExpiry,
-                        notificationSettings.hour to notificationSettings.minute
-                    )
-                }
-            }
+            refreshGiftAlarmsUseCase()
 
             // 즐겨찾기 기프티콘 목록
             _favoriteGiftList.value = giftList.filter { it.isFavorite }.sortedWith(

@@ -4,9 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.domain.usecase.GetGoogleCredentialUseCase
 import com.sumi.pockon.domain.usecase.SignInUseCase
-import com.sumi.pockon.domain.usecase.IsPinEnabledUseCase
-import com.sumi.pockon.domain.usecase.SaveUserSessionUseCase
 import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
+import com.sumi.pockon.domain.repository.PinRepository
+import com.sumi.pockon.domain.repository.UserSessionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,8 +22,8 @@ import javax.inject.Inject
 class LoginViewModel @Inject constructor(
     private val getGoogleCredentialUseCase: GetGoogleCredentialUseCase,
     private val signInUseCase: SignInUseCase,
-    private val isPinEnabledUseCase: IsPinEnabledUseCase,
-    private val saveUserSessionUseCase: SaveUserSessionUseCase,
+    private val pinRepository: PinRepository,
+    private val userSessionRepository: UserSessionRepository,
     private val getUserSessionUseCase: GetUserSessionUseCase
 ) : ViewModel() {
 
@@ -39,7 +39,7 @@ class LoginViewModel @Inject constructor(
     private val _loginFailureEvents = MutableSharedFlow<Unit>()
     val loginFailureEvents: SharedFlow<Unit> = _loginFailureEvents.asSharedFlow()
 
-    private var isPinUse = isPinEnabledUseCase()
+    private var isPinUse = pinRepository.isEnabled()
 
     fun getIsPinUse(): Boolean {
         return isPinUse
@@ -47,7 +47,7 @@ class LoginViewModel @Inject constructor(
 
     fun loginAsGuest() {
         isPinUse = true
-        saveUserSessionUseCase(uid = UUID.randomUUID().toString(), isGuest = true)
+        userSessionRepository.save(uid = UUID.randomUUID().toString(), isGuest = true)
         authenticate()
     }
 
@@ -60,7 +60,7 @@ class LoginViewModel @Inject constructor(
             }.onSuccess { credential ->
                 signInUseCase(credential.idToken).onSuccess { uid ->
                     isPinUse = true
-                    saveUserSessionUseCase(
+                    userSessionRepository.save(
                         uid,
                         credential.id,
                         credential.displayName,

@@ -3,15 +3,13 @@ package com.sumi.pockon.ui.list
 import com.sumi.pockon.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sumi.pockon.domain.usecase.GetNotificationSettingsUseCase
 import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
 import com.sumi.pockon.domain.model.Gift
-import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
 import com.sumi.pockon.domain.usecase.DeleteGiftUseCase
 import com.sumi.pockon.domain.usecase.DeleteGiftsUseCase
 import com.sumi.pockon.domain.usecase.SyncGiftListUseCase
 import com.sumi.pockon.domain.usecase.UpdateGiftUseCase
-import com.sumi.pockon.domain.usecase.ObserveAvailableGiftsUseCase
+import com.sumi.pockon.domain.repository.GiftRepository
 import com.sumi.pockon.domain.repository.GiftPhotoRepository
 import com.sumi.pockon.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,15 +29,13 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ListViewModel @Inject constructor(
-    private val observeAvailableGiftsUseCase: ObserveAvailableGiftsUseCase,
+    private val giftRepository: GiftRepository,
     private val giftPhotoRepository: GiftPhotoRepository,
     private val syncGiftListUseCase: SyncGiftListUseCase,
     private val updateGiftUseCase: UpdateGiftUseCase,
     private val deleteGiftUseCase: DeleteGiftUseCase,
     private val deleteGiftsUseCase: DeleteGiftsUseCase,
-    private val getNotificationSettingsUseCase: GetNotificationSettingsUseCase,
     private val getUserSessionUseCase: GetUserSessionUseCase,
-    private val cancelGiftAlarmUseCase: CancelGiftAlarmUseCase,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
@@ -72,7 +68,7 @@ class ListViewModel @Inject constructor(
     // 로컬 기프티콘 목록 변화 감지해서 가져오기
     private fun observeGiftList() {
         viewModelScope.launch(Dispatchers.IO) {
-            observeAvailableGiftsUseCase().collectLatest { allGift ->
+            giftRepository.observeAvailableGifts().collectLatest { allGift ->
                 val photoPaths = giftPhotoRepository.getPhotoPaths(allGift.map(Gift::id))
                 if (allGift.isNotEmpty()) {
                     _uiState.value = _uiState.value.copy(
@@ -237,9 +233,7 @@ class ListViewModel @Inject constructor(
                 gift = updateGift,
                 photoBytes = null
             )
-            if (result.isSuccess) {
-                cancelGiftAlarmUseCase(gift.id, getNotificationSettingsUseCase().daysBeforeExpiry)
-            } else {
+            if (result.isFailure) {
                 _events.emit(ListEvent.GiftUseFailed)
             }
         }
@@ -264,7 +258,6 @@ class ListViewModel @Inject constructor(
         viewModelScope.launch {
             val result = deleteGiftUseCase(isGuestMode, uid, id)
             if (result.isSuccess) {
-                cancelGiftAlarmUseCase(gift.id, getNotificationSettingsUseCase().daysBeforeExpiry)
                 _events.emit(ListEvent.GiftDeleted(isBulk = false))
             } else {
                 _events.emit(ListEvent.GiftDeleteFailed)
@@ -323,9 +316,6 @@ class ListViewModel @Inject constructor(
         viewModelScope.launch {
             val result = deleteGiftsUseCase(isGuestMode, uid, ids)
             if (result.isSuccess) {
-                ids.forEach { id ->
-                    cancelGiftAlarmUseCase(id, getNotificationSettingsUseCase().daysBeforeExpiry)
-                }
                 _events.emit(ListEvent.GiftDeleted(isBulk = true))
             } else {
                 _events.emit(ListEvent.GiftDeleteFailed)

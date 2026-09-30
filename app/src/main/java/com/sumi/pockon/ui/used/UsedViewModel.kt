@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
 import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.domain.usecase.DeleteGiftsUseCase
-import com.sumi.pockon.domain.usecase.ObserveUsedGiftsUseCase
+import com.sumi.pockon.domain.repository.GiftRepository
 import com.sumi.pockon.domain.repository.GiftPhotoRepository
 import com.sumi.pockon.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,7 +24,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class UsedViewModel @Inject constructor(
-    private val observeUsedGiftsUseCase: ObserveUsedGiftsUseCase,
+    private val giftRepository: GiftRepository,
     private val giftPhotoRepository: GiftPhotoRepository,
     private val deleteGiftsUseCase: DeleteGiftsUseCase,
     private val getUserSessionUseCase: GetUserSessionUseCase,
@@ -48,7 +48,7 @@ class UsedViewModel @Inject constructor(
     // 로컬 기프티콘 목록 변화 감지해서 가져오기
     private fun observeGiftList() {
         viewModelScope.launch(Dispatchers.IO) {
-            observeUsedGiftsUseCase().collectLatest { allGift ->
+            giftRepository.observeUsedGifts().collectLatest { allGift ->
                 val photoPaths = giftPhotoRepository.getPhotoPaths(allGift.map(Gift::id))
                 if (allGift.isNotEmpty()) {
                     val dateFormat = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())

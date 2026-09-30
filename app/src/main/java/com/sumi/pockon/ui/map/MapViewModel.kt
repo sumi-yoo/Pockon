@@ -8,8 +8,8 @@ import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.CameraPosition
 import com.sumi.pockon.domain.model.BrandLocation
 import com.sumi.pockon.domain.model.Gift
-import com.sumi.pockon.domain.usecase.GetCachedBrandsUseCase
-import com.sumi.pockon.domain.usecase.ObserveAvailableGiftsUseCase
+import com.sumi.pockon.domain.repository.BrandRepository
+import com.sumi.pockon.domain.repository.GiftRepository
 import com.sumi.pockon.domain.repository.GiftPhotoRepository
 import com.sumi.pockon.util.getDdayInt
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,8 +23,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MapViewModel @Inject constructor(
-    private val getCachedBrandsUseCase: GetCachedBrandsUseCase,
-    private val observeAvailableGiftsUseCase: ObserveAvailableGiftsUseCase,
+    private val brandRepository: BrandRepository,
+    private val giftRepository: GiftRepository,
     private val giftPhotoRepository: GiftPhotoRepository
 ) : ViewModel() {
 
@@ -54,7 +54,7 @@ class MapViewModel @Inject constructor(
     // 로컬 기프티콘 목록 변화 감지해서 가져오기
     private fun observeGiftList() {
         viewModelScope.launch(Dispatchers.IO) {
-            observeAvailableGiftsUseCase().collectLatest { allGift ->
+            giftRepository.observeAvailableGifts().collectLatest { allGift ->
                 giftList = allGift
                 _photoPaths.value = giftPhotoRepository.getPhotoPaths(allGift.map(Gift::id))
                 if (allGift.isNotEmpty()) {
@@ -68,7 +68,7 @@ class MapViewModel @Inject constructor(
     }
 
     private suspend fun getAllBrands() {
-        getCachedBrandsUseCase().onSuccess { brands ->
+        brandRepository.getCachedBrands().onSuccess { brands ->
             brandInfoList = brands
             mappingInfo()
         }

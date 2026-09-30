@@ -5,35 +5,24 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sumi.pockon.domain.model.Gift
-import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
-import com.sumi.pockon.domain.usecase.ScheduleGiftAlarmUseCase
-import com.sumi.pockon.domain.usecase.ObserveAllGiftsUseCase
-import com.sumi.pockon.domain.usecase.GetNotificationSettingsUseCase
-import com.sumi.pockon.domain.usecase.SaveNotificationSettingsUseCase
+import com.sumi.pockon.domain.usecase.UpdateNotificationSettingsUseCase
+import com.sumi.pockon.domain.repository.NotificationSettingsRepository
 import com.sumi.pockon.util.convertTo12HourFormat
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class NotificationSettingViewModel @Inject constructor(
-    private val observeAllGiftsUseCase: ObserveAllGiftsUseCase,
-    private val cancelGiftAlarmUseCase: CancelGiftAlarmUseCase,
-    private val scheduleGiftAlarmUseCase: ScheduleGiftAlarmUseCase,
-    private val getNotificationSettingsUseCase: GetNotificationSettingsUseCase,
-    private val saveNotificationSettingsUseCase: SaveNotificationSettingsUseCase
+    private val notificationSettingsRepository: NotificationSettingsRepository,
+    private val updateNotificationSettingsUseCase: UpdateNotificationSettingsUseCase
 ) : ViewModel() {
 
-    private var giftList = listOf<Gift>()
-    private var isLoading = true
     private var selectedHour = 0
     private var selectedMinute = 0
 
     private val dayList = listOf(0, 1, 3, 7, 14)
-    private var notificationSettings = getNotificationSettingsUseCase()
+    private var notificationSettings = notificationSettingsRepository.get()
 
     private val _seletedTime = mutableStateOf("")
     val seletedTime: State<String> = _seletedTime
@@ -47,12 +36,6 @@ class NotificationSettingViewModel @Inject constructor(
     init {
         initTime()
 
-        viewModelScope.launch(Dispatchers.IO) {
-            observeAllGiftsUseCase().collectLatest { allGift ->
-                giftList = allGift
-                isLoading = false
-            }
-        }
     }
 
     private fun initTime() {
@@ -82,25 +65,13 @@ class NotificationSettingViewModel @Inject constructor(
     fun confirmTime() {
         _seletedTime.value = convertTo12HourFormat(selectedHour, selectedMinute)
         notificationSettings = notificationSettings.copy(hour = selectedHour, minute = selectedMinute)
-        saveNotificationSettingsUseCase(notificationSettings)
+        viewModelScope.launch { updateNotificationSettingsUseCase(notificationSettings) }
     }
 
     fun changeNotiEndDt() {
-        if (!notificationSettings.isEnabled || isLoading) return
+        if (!notificationSettings.isEnabled) return
 
-        val previousDaysBeforeExpiry = notificationSettings.daysBeforeExpiry
         notificationSettings = notificationSettings.copy(daysBeforeExpiry = _seletedDay.intValue)
-        saveNotificationSettingsUseCase(notificationSettings)
-        giftList.forEach { gift ->
-            // 알림 등록
-            cancelGiftAlarmUseCase(gift.id, previousDaysBeforeExpiry)
-            if (gift.usedDt.isEmpty()) {
-                scheduleGiftAlarmUseCase(
-                    gift,
-                    notificationSettings.daysBeforeExpiry,
-                    notificationSettings.hour to notificationSettings.minute
-                )
-            }
-        }
+        viewModelScope.launch { updateNotificationSettingsUseCase(notificationSettings) }
     }
 }

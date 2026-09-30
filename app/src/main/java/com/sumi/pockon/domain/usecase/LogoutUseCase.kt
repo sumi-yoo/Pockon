@@ -1,6 +1,5 @@
 package com.sumi.pockon.domain.usecase
 
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.sumi.pockon.domain.repository.AlarmRepository
 import com.sumi.pockon.domain.repository.AuthRepository
 import com.sumi.pockon.domain.repository.BrandRepository
@@ -10,7 +9,7 @@ import com.sumi.pockon.domain.repository.UserSessionRepository
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
-class DeleteAccountUseCase @Inject constructor(
+class LogoutUseCase @Inject constructor(
     private val authRepository: AuthRepository,
     private val giftRepository: GiftRepository,
     private val brandRepository: BrandRepository,
@@ -18,19 +17,8 @@ class DeleteAccountUseCase @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val userSessionRepository: UserSessionRepository
 ) {
-    suspend operator fun invoke(
-        isGuestMode: Boolean,
-        uid: String,
-        credential: GoogleIdTokenCredential? = null
-    ): Result<Unit> = runCatching {
+    suspend operator fun invoke(isGuestMode: Boolean): Result<Unit> = runCatching {
         val gifts = giftRepository.observeAllGifts().first()
-        giftRepository.deleteGifts(isGuestMode, uid, gifts.map { it.id }).getOrThrow()
-
-        if (!isGuestMode) {
-            requireNotNull(credential) { "Google credential is required for account deletion." }
-            authRepository.deleteAccount(credential).getOrThrow()
-        }
-
         val daysBeforeExpiry = notificationSettingsRepository.get().daysBeforeExpiry
         gifts.forEach { gift -> alarmRepository.cancel(gift.id, daysBeforeExpiry) }
         giftRepository.clearAllGifts().getOrThrow()

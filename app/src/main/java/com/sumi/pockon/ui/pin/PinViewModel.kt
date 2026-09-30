@@ -7,8 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.R
-import com.sumi.pockon.domain.usecase.SavePinUseCase
-import com.sumi.pockon.domain.usecase.GetPinUseCase
+import com.sumi.pockon.domain.repository.PinRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -16,11 +15,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 class PinViewModel @Inject constructor(
-    private val savePinUseCase: SavePinUseCase,
-    private val getPinUseCase: GetPinUseCase
+    private val pinRepository: PinRepository
 ) : ViewModel() {
 
-    private val pinNumber = getPinUseCase()
+    private val pinNumber = pinRepository.getPin()
     private val pinSize = 6
     private var checkPin = ""
 
@@ -94,7 +92,7 @@ class PinViewModel @Inject constructor(
 
                         1 -> {
                             if (enteredPin == checkPin) {
-                                savePinUseCase(checkPin)
+                                pinRepository.save(checkPin)
                                 _error.value = null
                                 _showSuccess.value = true
                             } else {

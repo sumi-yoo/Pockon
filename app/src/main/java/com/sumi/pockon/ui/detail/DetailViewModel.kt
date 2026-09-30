@@ -6,13 +6,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sumi.pockon.R
-import com.sumi.pockon.domain.usecase.GetNotificationSettingsUseCase
 import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
 import com.sumi.pockon.domain.model.Gift
-import com.sumi.pockon.domain.usecase.CancelGiftAlarmUseCase
 import com.sumi.pockon.domain.usecase.UpdateGiftFavoriteUseCase
 import com.sumi.pockon.domain.usecase.UpdateGiftUseCase
-import com.sumi.pockon.domain.usecase.ObserveGiftUseCase
+import com.sumi.pockon.domain.repository.GiftRepository
 import com.sumi.pockon.domain.repository.GiftPhotoRepository
 import com.sumi.pockon.util.NetworkMonitor
 import com.sumi.pockon.util.toByteArray
@@ -30,12 +28,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DetailViewModel @Inject constructor(
-    private val observeGiftUseCase: ObserveGiftUseCase,
+    private val giftRepository: GiftRepository,
     private val giftPhotoRepository: GiftPhotoRepository,
     private val updateGiftUseCase: UpdateGiftUseCase,
     private val updateGiftFavoriteUseCase: UpdateGiftFavoriteUseCase,
-    private val cancelGiftAlarmUseCase: CancelGiftAlarmUseCase,
-    private val getNotificationSettingsUseCase: GetNotificationSettingsUseCase,
     private val getUserSessionUseCase: GetUserSessionUseCase,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
@@ -84,7 +80,7 @@ class DetailViewModel @Inject constructor(
 
     fun getGift(id: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            observeGiftUseCase(id).collectLatest { gift ->
+            giftRepository.observeGift(id).collectLatest { gift ->
                 setGift(gift)
                 _photoPath.value = giftPhotoRepository.getPhotoPath(gift.id)
             }
@@ -206,10 +202,6 @@ class DetailViewModel @Inject constructor(
                 }.getOrNull()
 
                 if (result?.isSuccess == true) {
-                    cancelGiftAlarmUseCase(
-                        updateGift.id,
-                        getNotificationSettingsUseCase().daysBeforeExpiry
-                    )
                     _gift.value = updateGift
                     _isEdit.value = false
                     _events.emit(DetailEvent.GiftUpdated)
