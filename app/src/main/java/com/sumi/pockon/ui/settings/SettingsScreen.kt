@@ -38,6 +38,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,7 +62,6 @@ import coil.compose.AsyncImage
 import com.sumi.pockon.R
 import com.sumi.pockon.ui.common.PockonTopAppBar
 import com.sumi.pockon.ui.common.PockonConfirmDialog
-import com.sumi.pockon.ui.common.NetworkErrorDialog
 import com.sumi.pockon.ui.common.PockonMessageDialog
 import kotlinx.coroutines.launch
 
@@ -75,9 +75,11 @@ fun SettingsScreen(
     isLoading: (Boolean) -> Unit
 ) {
     val settingViewModel = hiltViewModel<SettingsViewModel>()
+    val isNetworkConnected by settingViewModel.isNetworkConnected.collectAsState()
 
     var showLogoutDlg by remember { mutableStateOf(false) }
     var showRemoveDlg by remember { mutableStateOf(false) }
+    var showNetworkRequiredDialog by remember { mutableStateOf(false) }
     var showNotificationPermissionDialog by remember { mutableStateOf(false) }
     var checkedAlarm by rememberSaveable { mutableStateOf(settingViewModel.getIsNotiEndDt()) }
     var checkedPwd by rememberSaveable { mutableStateOf(settingViewModel.getIsAuthPin()) }
@@ -218,7 +220,11 @@ fun SettingsScreen(
                         SettingItem(
                             text = stringResource(id = R.string.txt_remove_account),
                             onClick = {
-                                showRemoveDlg = true
+                                if (isNetworkConnected) {
+                                    showRemoveDlg = true
+                                } else {
+                                    showNetworkRequiredDialog = true
+                                }
                             }
                         )
                     }
@@ -261,10 +267,6 @@ fun SettingsScreen(
             )
         }
 
-        NetworkErrorDialog(
-            visible = settingViewModel.isShowNoInternetDialog.value,
-            onDismiss = settingViewModel::changeNoInternetDialogState
-        )
     }
 
     if (showNotificationPermissionDialog) {
@@ -277,6 +279,14 @@ fun SettingsScreen(
                 showNotificationPermissionDialog = false
             },
             onDismiss = { showNotificationPermissionDialog = false }
+        )
+    }
+
+    if (showNetworkRequiredDialog) {
+        PockonMessageDialog(
+            message = R.string.msg_no_internet,
+            onConfirm = { showNetworkRequiredDialog = false },
+            onDismiss = { showNetworkRequiredDialog = false }
         )
     }
 

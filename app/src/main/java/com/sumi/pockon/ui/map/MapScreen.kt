@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -33,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -69,6 +72,7 @@ fun MapScreen(onBack: () -> Unit, onDetail: (String) -> Unit) {
     val mapViewModel = hiltViewModel<MapViewModel>()
     val displayInfoList by mapViewModel.displayInfoList.collectAsState()
     val photoPaths by mapViewModel.photoPaths.collectAsState()
+    val isNetworkConnected by mapViewModel.isNetworkConnected.collectAsState()
     val context = LocalContext.current
     var detailGift by rememberSaveable { mutableStateOf<Gift?>(null) }
     var isTopScroll by rememberSaveable { mutableStateOf<Boolean?>(false) }
@@ -138,11 +142,32 @@ fun MapScreen(onBack: () -> Unit, onDetail: (String) -> Unit) {
                 }
             }
             if (mapViewModel.currentLocation.value == null) LoadingScreen()
+
+            if (!isNetworkConnected) {
+                Box(modifier = Modifier.align(Alignment.TopCenter)) {
+                    MapOfflineBanner()
+                }
+            }
         }
     }
 
     BackHandler {
         onBack()
+    }
+}
+
+@Composable
+private fun MapOfflineBanner() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer
+    ) {
+        Text(
+            text = stringResource(R.string.msg_no_internet),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.bodyMedium
+        )
     }
 }
 

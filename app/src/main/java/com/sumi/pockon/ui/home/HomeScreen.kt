@@ -67,7 +67,6 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.sumi.pockon.R
-import com.sumi.pockon.ui.common.NetworkErrorDialog
 import com.sumi.pockon.ui.common.PockonMessageDialog
 import com.sumi.pockon.ui.common.PockonTopAppBar
 import com.sumi.pockon.domain.model.BrandLocation
@@ -97,7 +96,6 @@ fun HomeScreen(
 
     var longitude: Double? by rememberSaveable { mutableStateOf(null) }
     var latitude: Double? by rememberSaveable { mutableStateOf(null) }
-    var isShowNoInternetDialog by rememberSaveable { mutableStateOf(false) }
     var isShowLocationPermissionDialog by rememberSaveable { mutableStateOf(false) }
     var isShowLocationServiceDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -144,9 +142,7 @@ fun HomeScreen(
                             IconButton(
                                 onClick = {
                                     // 권한 체크
-                                    if (!homeViewModel.isNetworkConnected()) {
-                                        isShowNoInternetDialog = true
-                                    } else if (!checkLocationPermission(context)) {
+                                    if (!checkLocationPermission(context)) {
                                         isShowLocationPermissionDialog = true
                                     } else if (!isLocationEnabled(context)) {
                                         isShowLocationServiceDialog = true
@@ -275,11 +271,6 @@ fun HomeScreen(
             }
         }
     }
-
-    NetworkErrorDialog(
-        visible = isShowNoInternetDialog,
-        onDismiss = { isShowNoInternetDialog = false }
-    )
 
     if (isShowLocationPermissionDialog) {
         PockonMessageDialog(

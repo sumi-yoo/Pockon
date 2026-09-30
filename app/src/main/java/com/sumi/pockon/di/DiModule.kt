@@ -23,7 +23,8 @@ import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import com.sumi.pockon.data.local.alarm.AlarmDataSource
 import com.sumi.pockon.data.local.preference.PreferenceLocalDataSource
-import com.sumi.pockon.util.NetworkMonitor
+import com.sumi.pockon.core.network.NetworkMonitor
+import com.sumi.pockon.core.network.NetworkStatusProvider
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -134,7 +135,6 @@ class DiModule {
 
     @Singleton
     @Provides
-    fun provideNetworkMonitor(@ApplicationContext context: Context): NetworkMonitor {
-        return NetworkMonitor(context)
-    }
+    fun provideNetworkStatusProvider(networkMonitor: NetworkMonitor): NetworkStatusProvider = networkMonitor
+
 }

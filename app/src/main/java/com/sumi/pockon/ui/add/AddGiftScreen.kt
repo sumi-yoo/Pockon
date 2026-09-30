@@ -77,7 +77,6 @@ import coil.compose.AsyncImage
 import com.sumi.pockon.util.DateTransformation
 import com.sumi.pockon.R
 import com.sumi.pockon.ui.common.GiftField
-import com.sumi.pockon.ui.common.NetworkErrorDialog
 import com.sumi.pockon.ui.common.PockonTopAppBar
 import com.sumi.pockon.ui.loading.LoadingScreen
 import com.sumi.pockon.util.formatDateToYYYYMMDD
@@ -253,10 +252,6 @@ fun AddGifticon(onBack: (Boolean) -> Unit) {
         LoadingScreen()
     }
 
-    NetworkErrorDialog(
-        visible = uiState.isShowNoInternetDialog,
-        onDismiss = addViewModel::changeNoInternetDialogState
-    )
 }
 
 @Composable

@@ -4,6 +4,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sumi.pockon.core.network.NetworkStatusProvider
 import com.naver.maps.geometry.LatLng
 import com.naver.maps.map.CameraPosition
 import com.sumi.pockon.domain.model.BrandLocation
@@ -25,8 +26,11 @@ import javax.inject.Inject
 class MapViewModel @Inject constructor(
     private val brandRepository: BrandRepository,
     private val giftRepository: GiftRepository,
-    private val giftPhotoRepository: GiftPhotoRepository
+    private val giftPhotoRepository: GiftPhotoRepository,
+    networkStatusProvider: NetworkStatusProvider
 ) : ViewModel() {
+
+    val isNetworkConnected = networkStatusProvider.isConnected
 
     private val _displayInfoList = MutableStateFlow<List<Pair<BrandLocation, List<Gift>>>>(emptyList())
     val displayInfoList: StateFlow<List<Pair<BrandLocation, List<Gift>>>> = _displayInfoList.asStateFlow()

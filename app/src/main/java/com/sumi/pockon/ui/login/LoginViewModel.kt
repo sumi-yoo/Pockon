@@ -2,6 +2,7 @@ package com.sumi.pockon.ui.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sumi.pockon.core.network.NetworkStatusProvider
 import com.sumi.pockon.domain.usecase.GetGoogleCredentialUseCase
 import com.sumi.pockon.domain.usecase.SignInUseCase
 import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
@@ -24,8 +25,11 @@ class LoginViewModel @Inject constructor(
     private val signInUseCase: SignInUseCase,
     private val pinRepository: PinRepository,
     private val userSessionRepository: UserSessionRepository,
-    private val getUserSessionUseCase: GetUserSessionUseCase
+    private val getUserSessionUseCase: GetUserSessionUseCase,
+    networkStatusProvider: NetworkStatusProvider
 ) : ViewModel() {
+
+    val isNetworkConnected = networkStatusProvider.isConnected
 
     private val session = getUserSessionUseCase()
     private val _uiState = MutableStateFlow(

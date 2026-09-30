@@ -7,7 +7,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import com.sumi.pockon.R
 import com.sumi.pockon.ui.common.PockonConfirmDialog
-import com.sumi.pockon.ui.common.NetworkErrorDialog
 import com.sumi.pockon.ui.common.PockonTopAppBar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -187,11 +186,6 @@ fun ListScreen(onDetail: (String) -> Unit, onAdd: () -> Unit, isLoading: (Boolea
             }
         )
     }
-
-    NetworkErrorDialog(
-        visible = uiState.isShowNoInternetDialog,
-        onDismiss = listViewModel::changeNoInternetDialogState
-    )
 
     Scaffold(
         snackbarHost = {

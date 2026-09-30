@@ -7,7 +7,6 @@ import com.sumi.pockon.R
 import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
 import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.domain.usecase.AddGiftUseCase
-import com.sumi.pockon.util.NetworkMonitor
 import com.sumi.pockon.util.toByteArray
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -25,8 +24,7 @@ import javax.inject.Inject
 @HiltViewModel
 class AddViewModel @Inject constructor(
     private val addGiftUseCase: AddGiftUseCase,
-    private val getUserSessionUseCase: GetUserSessionUseCase,
-    private val networkMonitor: NetworkMonitor
+    private val getUserSessionUseCase: GetUserSessionUseCase
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<AddGiftEvent>()
@@ -50,11 +48,6 @@ class AddViewModel @Inject constructor(
     }
 
     fun addGift() {
-        if (!isGuestMode && !networkMonitor.isConnected()) {
-            _uiState.value = _uiState.value.copy(isShowNoInternetDialog = true)
-            return
-        }
-
         _uiState.value = _uiState.value.copy(isLoading = true)
         val addDate = SimpleDateFormat(
             "yyyyMMddHHmmss",
@@ -104,10 +97,6 @@ class AddViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(isShowDatePicker = !_uiState.value.isShowDatePicker)
     }
 
-    fun changeNoInternetDialogState() {
-        _uiState.value = _uiState.value.copy(isShowNoInternetDialog = false)
-    }
-
     fun isValid(): Int? {
         var msg: Int? = null
         val state = _uiState.value
@@ -151,8 +140,7 @@ data class AddUiState(
     val memo: String = "",
     val isShowDatePicker: Boolean = false,
     val isCheckedCash: Boolean = false,
-    val isLoading: Boolean = false,
-    val isShowNoInternetDialog: Boolean = false
+    val isLoading: Boolean = false
 )
 
 sealed interface AddGiftEvent {

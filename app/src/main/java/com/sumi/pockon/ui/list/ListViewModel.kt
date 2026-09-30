@@ -11,7 +11,6 @@ import com.sumi.pockon.domain.usecase.SyncGiftListUseCase
 import com.sumi.pockon.domain.usecase.UpdateGiftUseCase
 import com.sumi.pockon.domain.repository.GiftRepository
 import com.sumi.pockon.domain.repository.GiftPhotoRepository
-import com.sumi.pockon.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -35,8 +34,7 @@ class ListViewModel @Inject constructor(
     private val updateGiftUseCase: UpdateGiftUseCase,
     private val deleteGiftUseCase: DeleteGiftUseCase,
     private val deleteGiftsUseCase: DeleteGiftsUseCase,
-    private val getUserSessionUseCase: GetUserSessionUseCase,
-    private val networkMonitor: NetworkMonitor
+    private val getUserSessionUseCase: GetUserSessionUseCase
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<ListEvent>(extraBufferCapacity = 1)
@@ -106,11 +104,6 @@ class ListViewModel @Inject constructor(
             filterList()
             orderBy()
             toggleIsScrollTop()
-            return
-        }
-
-        if (!networkMonitor.isConnected()) {
-            _uiState.value = _uiState.value.copy(isShowNoInternetDialog = true)
             return
         }
 
@@ -216,12 +209,6 @@ class ListViewModel @Inject constructor(
 
     // 기프티콘 수정
     fun usedGift(gift: Gift) {
-        if (!isGuestMode && !networkMonitor.isConnected()) {
-            _uiState.value = _uiState.value.copy(isShowNoInternetDialog = true)
-            _events.tryEmit(ListEvent.GiftUseFailed)
-            return
-        }
-
         val nowDt = SimpleDateFormat(
             "yyyy.MM.dd",
             Locale.getDefault()
@@ -241,12 +228,6 @@ class ListViewModel @Inject constructor(
 
     // 기프티콘 삭제
     fun removeGift() {
-        if (!isGuestMode && !networkMonitor.isConnected()) {
-            _uiState.value = _uiState.value.copy(isShowNoInternetDialog = true)
-            _events.tryEmit(ListEvent.GiftDeleteFailed)
-            return
-        }
-
         val gift = removeGift
         if (gift == null || gift.id.isEmpty()) {
             _events.tryEmit(ListEvent.GiftDeleteFailed)
@@ -301,12 +282,6 @@ class ListViewModel @Inject constructor(
 
     // 선택 삭제/전체 삭제
     fun deleteSelection() {
-        if (!isGuestMode && !networkMonitor.isConnected()) {
-            _uiState.value = _uiState.value.copy(isShowNoInternetDialog = true)
-            _events.tryEmit(ListEvent.GiftDeleteFailed)
-            return
-        }
-
         val ids = _uiState.value.checkedGiftIds
         if (ids.isEmpty()) {
             _events.tryEmit(ListEvent.GiftDeleteFailed)
@@ -321,10 +296,6 @@ class ListViewModel @Inject constructor(
                 _events.emit(ListEvent.GiftDeleteFailed)
             }
         }
-    }
-
-    fun changeNoInternetDialogState() {
-        _uiState.value = _uiState.value.copy(isShowNoInternetDialog = false)
     }
 
     fun toggleIsScrollTop() {
@@ -342,7 +313,6 @@ data class ListUiState(
     val topTitle: Int = R.string.top_app_bar_recent,
     val checkedGiftIds: List<String> = emptyList(),
     val isAllSelect: Boolean = false,
-    val isShowNoInternetDialog: Boolean = false,
     val isScrollTop: Boolean = false
 )
 

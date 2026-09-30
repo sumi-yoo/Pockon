@@ -13,7 +13,6 @@ import com.sumi.pockon.domain.usecase.SearchNearbyBrandUseCase
 import com.sumi.pockon.domain.repository.AppPreferencesRepository
 import com.sumi.pockon.domain.repository.GiftPhotoRepository
 import com.sumi.pockon.domain.repository.GiftRepository
-import com.sumi.pockon.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -28,8 +27,7 @@ class HomeViewModel @Inject constructor(
     private val searchNearbyBrandUseCase: SearchNearbyBrandUseCase,
     private val getUserSessionUseCase: GetUserSessionUseCase,
     private val appPreferencesRepository: AppPreferencesRepository,
-    private val refreshGiftAlarmsUseCase: RefreshGiftAlarmsUseCase,
-    private val networkMonitor: NetworkMonitor
+    private val refreshGiftAlarmsUseCase: RefreshGiftAlarmsUseCase
 ) : ViewModel() {
 
     private var longitude: Double? = null
@@ -61,7 +59,7 @@ class HomeViewModel @Inject constructor(
     private fun getGiftList() {
         _isShowIndicator.value = true
 
-        if (isGuestMode || !isFirstLogin || !networkMonitor.isConnected()) {
+        if (isGuestMode || !isFirstLogin) {
             _isShowIndicator.value = false
             return
         } // 게스트 모드 또는 최초 로그인이 아니면 서버 안탐
@@ -112,8 +110,6 @@ class HomeViewModel @Inject constructor(
 
     // 브랜드 검색 후 로컬에 저장
     private fun getBrandInfoList() {
-        if (!networkMonitor.isConnected()) return
-
         val longitude = longitude ?: return
         val latitude = latitude ?: return
 
@@ -142,5 +138,4 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun isNetworkConnected() = networkMonitor.isConnected()
 }

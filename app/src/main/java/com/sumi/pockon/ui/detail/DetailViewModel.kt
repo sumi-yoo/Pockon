@@ -12,7 +12,6 @@ import com.sumi.pockon.domain.usecase.UpdateGiftFavoriteUseCase
 import com.sumi.pockon.domain.usecase.UpdateGiftUseCase
 import com.sumi.pockon.domain.repository.GiftRepository
 import com.sumi.pockon.domain.repository.GiftPhotoRepository
-import com.sumi.pockon.util.NetworkMonitor
 import com.sumi.pockon.util.toByteArray
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -32,8 +31,7 @@ class DetailViewModel @Inject constructor(
     private val giftPhotoRepository: GiftPhotoRepository,
     private val updateGiftUseCase: UpdateGiftUseCase,
     private val updateGiftFavoriteUseCase: UpdateGiftFavoriteUseCase,
-    private val getUserSessionUseCase: GetUserSessionUseCase,
-    private val networkMonitor: NetworkMonitor
+    private val getUserSessionUseCase: GetUserSessionUseCase
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<DetailEvent>()
@@ -75,8 +73,6 @@ class DetailViewModel @Inject constructor(
     val isEdit: State<Boolean> = _isEdit
     private val _isShowIndicator = mutableStateOf(false)
     val isShowIndicator: State<Boolean> = _isShowIndicator
-    private val _isShowNoInternetDialog = mutableStateOf(false)
-    val isShowNoInternetDialog: State<Boolean> = _isShowNoInternetDialog
 
     fun getGift(id: String) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -140,11 +136,6 @@ class DetailViewModel @Inject constructor(
     }
 
     fun toggleFavorite() {
-        if (!isGuestMode && !networkMonitor.isConnected()) {
-            _isShowNoInternetDialog.value = true
-            return
-        }
-
         val isFavorite = !_isFavorite.value
         viewModelScope.launch {
             updateGiftFavoriteUseCase(
@@ -158,11 +149,6 @@ class DetailViewModel @Inject constructor(
     }
 
     fun updateGift() {
-        if (!isGuestMode && !networkMonitor.isConnected()) {
-            _isShowNoInternetDialog.value = true
-            return
-        }
-
         _isShowIndicator.value = true
         val updateGift = if (_isCheckedCash.value) {
             Gift(
@@ -215,11 +201,6 @@ class DetailViewModel @Inject constructor(
     }
 
     fun setIsUsed(flag: Boolean, cash: Int? = null) {
-        if (!isGuestMode && !networkMonitor.isConnected()) {
-            _isShowNoInternetDialog.value = true
-            return
-        }
-
         _isShowIndicator.value = true
         var nowDt = ""
         if ((flag && cash == null) || (flag && cash == 0)) {
@@ -261,10 +242,6 @@ class DetailViewModel @Inject constructor(
 
     fun changeDatePickerState() {
         _isShowDatePicker.value = !_isShowDatePicker.value
-    }
-
-    fun changeNoInternetDialogState() {
-        _isShowNoInternetDialog.value = !_isShowNoInternetDialog.value
     }
 
     fun isValid(): Int? {

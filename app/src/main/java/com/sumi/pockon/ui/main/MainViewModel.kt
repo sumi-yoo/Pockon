@@ -13,7 +13,7 @@ import javax.inject.Inject
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val updateNotificationSettingsUseCase: UpdateNotificationSettingsUseCase,
-    private val appPreferencesRepository: AppPreferencesRepository,
+    private val appPreferencesRepository: AppPreferencesRepository
 ) : ViewModel() {
 
     private val _isPermRationale = mutableStateOf(appPreferencesRepository.isNotificationPermissionRationaleShown())

@@ -7,7 +7,6 @@ import com.sumi.pockon.domain.model.Gift
 import com.sumi.pockon.domain.usecase.DeleteGiftsUseCase
 import com.sumi.pockon.domain.repository.GiftRepository
 import com.sumi.pockon.domain.repository.GiftPhotoRepository
-import com.sumi.pockon.util.NetworkMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -27,8 +26,7 @@ class UsedViewModel @Inject constructor(
     private val giftRepository: GiftRepository,
     private val giftPhotoRepository: GiftPhotoRepository,
     private val deleteGiftsUseCase: DeleteGiftsUseCase,
-    private val getUserSessionUseCase: GetUserSessionUseCase,
-    private val networkMonitor: NetworkMonitor
+    private val getUserSessionUseCase: GetUserSessionUseCase
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<UsedEvent>(extraBufferCapacity = 1)
@@ -77,11 +75,6 @@ class UsedViewModel @Inject constructor(
 
     // 선택 삭제/전체 삭제
     fun deleteSelection() {
-        if (!isGuestMode && !networkMonitor.isConnected()) {
-            _events.tryEmit(UsedEvent.DeleteFailed)
-            return
-        }
-
         val ids = _uiState.value.checkedGiftIds
         if (ids.isEmpty()) {
             _events.tryEmit(UsedEvent.DeleteFailed)

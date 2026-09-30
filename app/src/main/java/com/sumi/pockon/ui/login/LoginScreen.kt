@@ -60,12 +60,21 @@ fun LoginScreen(
     onAuthenticated: (isPinEnabled: Boolean) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isNetworkConnected by viewModel.isNetworkConnected.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val loginFailureMessage = stringResource(R.string.msg_login_fail)
+    val noInternetMessage = stringResource(R.string.msg_no_internet)
     val privacyConsentRequiredMessage = stringResource(R.string.privacy_consent_required)
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var showPrivacyConsentDialog by rememberSaveable { mutableStateOf(false) }
+    val requestGoogleLogin: () -> Unit = {
+        if (isNetworkConnected) {
+            showPrivacyConsentDialog = true
+        } else {
+            coroutineScope.launch { snackbarHostState.showSnackbar(message = noInternetMessage) }
+        }
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.loginFailureEvents.collectLatest {
@@ -105,7 +114,7 @@ fun LoginScreen(
                                 .weight(1f)
                                 .widthIn(max = 320.dp)
                                 .padding(start = 24.dp),
-                            onGoogleLogin = { showPrivacyConsentDialog = true },
+                            onGoogleLogin = requestGoogleLogin,
                             onGuestLogin = viewModel::loginAsGuest
                         )
                     }
@@ -122,7 +131,7 @@ fun LoginScreen(
                     if (uiState.isFirstLogin) {
                         LoginActions(
                             modifier = Modifier.fillMaxWidth(),
-                            onGoogleLogin = { showPrivacyConsentDialog = true },
+                            onGoogleLogin = requestGoogleLogin,
                             onGuestLogin = viewModel::loginAsGuest
                         )
                     }

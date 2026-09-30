@@ -107,7 +107,6 @@ import com.sumi.pockon.ui.loading.LoadingScreen
 import com.sumi.pockon.ui.add.CustomDatePickerDialog
 import com.sumi.pockon.ui.common.PockonConfirmDialog
 import com.sumi.pockon.ui.common.GiftField
-import com.sumi.pockon.ui.common.NetworkErrorDialog
 import com.sumi.pockon.util.decimalFormat
 import com.sumi.pockon.util.getBitmapFromUri
 import com.sumi.pockon.util.thousandSeparatorTransformation
@@ -439,10 +438,6 @@ fun DetailScreen(id: String, isEditMode: Boolean = true, onBack: () -> Unit) {
             )
         }
 
-        NetworkErrorDialog(
-            visible = detailViewModel.isShowNoInternetDialog.value,
-            onDismiss = detailViewModel::changeNoInternetDialogState
-        )
     }
 
     if (detailViewModel.isShowIndicator.value) {
