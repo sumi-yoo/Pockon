@@ -23,6 +23,8 @@ import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import com.sumi.pockon.data.local.alarm.AlarmDataSource
 import com.sumi.pockon.data.local.preference.PreferenceLocalDataSource
+import com.sumi.pockon.core.auth.GoogleCredentialProvider
+import com.sumi.pockon.core.auth.GoogleCredentialProviderImpl
 import com.sumi.pockon.core.network.NetworkMonitor
 import com.sumi.pockon.core.network.NetworkStatusProvider
 import dagger.Module
@@ -51,8 +53,8 @@ class DiModule {
 
     @Singleton
     @Provides
-    fun provideLoginDataSource(auth: FirebaseAuth, @ApplicationContext context: Context): LoginDataSource {
-        return LoginDataSource(auth, context)
+    fun provideLoginDataSource(auth: FirebaseAuth): LoginDataSource {
+        return LoginDataSource(auth)
     }
 
     @Singleton
@@ -136,5 +138,11 @@ class DiModule {
     @Singleton
     @Provides
     fun provideNetworkStatusProvider(networkMonitor: NetworkMonitor): NetworkStatusProvider = networkMonitor
+
+    @Singleton
+    @Provides
+    fun provideGoogleCredentialProvider(
+        googleCredentialProviderImpl: GoogleCredentialProviderImpl
+    ): GoogleCredentialProvider = googleCredentialProviderImpl
 
 }

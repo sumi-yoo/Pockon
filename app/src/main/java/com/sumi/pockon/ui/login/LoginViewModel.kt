@@ -2,8 +2,8 @@ package com.sumi.pockon.ui.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sumi.pockon.core.auth.GoogleCredentialProvider
 import com.sumi.pockon.core.network.NetworkStatusProvider
-import com.sumi.pockon.domain.usecase.GetGoogleCredentialUseCase
 import com.sumi.pockon.domain.usecase.SignInUseCase
 import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
 import com.sumi.pockon.domain.repository.PinRepository
@@ -21,7 +21,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val getGoogleCredentialUseCase: GetGoogleCredentialUseCase,
+    private val googleCredentialProvider: GoogleCredentialProvider,
     private val signInUseCase: SignInUseCase,
     private val pinRepository: PinRepository,
     private val userSessionRepository: UserSessionRepository,
@@ -58,7 +58,7 @@ class LoginViewModel @Inject constructor(
     fun loginWithGoogleCredential() {
         setLoading(true)
         viewModelScope.launch {
-            getGoogleCredentialUseCase().onFailure {
+            googleCredentialProvider.getCredential().onFailure {
                 setLoading(false)
                 _loginFailureEvents.emit(Unit)
             }.onSuccess { credential ->
@@ -66,9 +66,9 @@ class LoginViewModel @Inject constructor(
                     isPinUse = true
                     userSessionRepository.save(
                         uid,
-                        credential.id,
+                        credential.email,
                         credential.displayName,
-                        credential.profilePictureUri?.toString()
+                        credential.profileImageUrl
                     )
                     authenticate()
                 }.onFailure {

@@ -1,6 +1,5 @@
 package com.sumi.pockon.domain.usecase
 
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.sumi.pockon.domain.repository.AlarmRepository
 import com.sumi.pockon.domain.repository.AuthRepository
 import com.sumi.pockon.domain.repository.BrandRepository
@@ -21,14 +20,14 @@ class DeleteAccountUseCase @Inject constructor(
     suspend operator fun invoke(
         isGuestMode: Boolean,
         uid: String,
-        credential: GoogleIdTokenCredential? = null
+        idToken: String? = null
     ): Result<Unit> = runCatching {
         val gifts = giftRepository.observeAllGifts().first()
         giftRepository.deleteGifts(isGuestMode, uid, gifts.map { it.id }).getOrThrow()
 
         if (!isGuestMode) {
-            requireNotNull(credential) { "Google credential is required for account deletion." }
-            authRepository.deleteAccount(credential).getOrThrow()
+            requireNotNull(idToken) { "Google ID token is required for account deletion." }
+            authRepository.deleteAccount(idToken).getOrThrow()
         }
 
         val daysBeforeExpiry = notificationSettingsRepository.get().daysBeforeExpiry

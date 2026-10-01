@@ -2,9 +2,9 @@ package com.sumi.pockon.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sumi.pockon.core.auth.GoogleCredentialProvider
 import com.sumi.pockon.core.network.NetworkStatusProvider
 import com.sumi.pockon.domain.usecase.DeleteAccountUseCase
-import com.sumi.pockon.domain.usecase.GetGoogleCredentialUseCase
 import com.sumi.pockon.domain.usecase.LogoutUseCase
 import com.sumi.pockon.domain.usecase.UpdateNotificationSettingsUseCase
 import com.sumi.pockon.domain.usecase.GetUserSessionUseCase
@@ -18,7 +18,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val getGoogleCredentialUseCase: GetGoogleCredentialUseCase,
+    private val googleCredentialProvider: GoogleCredentialProvider,
     private val deleteAccountUseCase: DeleteAccountUseCase,
     private val logoutUseCase: LogoutUseCase,
     private val updateNotificationSettingsUseCase: UpdateNotificationSettingsUseCase,
@@ -67,17 +67,17 @@ class SettingsViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            getGoogleCredentialUseCase().onSuccess { credential ->
-                removeAccount(credential)
+            googleCredentialProvider.getCredential().onSuccess { credential ->
+                removeAccount(credential.idToken)
             }.onFailure {
                 _events.emit(SettingsEvent.AccountDeletionFailed)
             }
         }
     }
 
-    private fun removeAccount(credential: com.google.android.libraries.identity.googleid.GoogleIdTokenCredential?) {
+    private fun removeAccount(idToken: String?) {
         viewModelScope.launch {
-            deleteAccountUseCase(isGuestMode, uid, credential).fold(
+            deleteAccountUseCase(isGuestMode, uid, idToken).fold(
                 onSuccess = { _events.emit(SettingsEvent.AccountDeleted) },
                 onFailure = { _events.emit(SettingsEvent.AccountDeletionFailed) }
             )

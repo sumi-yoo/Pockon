@@ -1,6 +1,5 @@
 package com.sumi.pockon.data.repository
 
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.sumi.pockon.data.remote.login.LoginDataSource
 import com.sumi.pockon.domain.repository.AuthRepository
 import kotlinx.coroutines.CancellationException
@@ -10,12 +9,10 @@ class LoginRepository @Inject constructor(
     private val loginDataSource: LoginDataSource
 ) : AuthRepository {
 
-    override suspend fun getGoogleCredential() = resultOf { loginDataSource.getIdToken() }
-
     override suspend fun signIn(idToken: String) = resultOf { loginDataSource.login(idToken) }
 
-    override suspend fun deleteAccount(credential: GoogleIdTokenCredential) = resultOf {
-        loginDataSource.removeAccount(credential)
+    override suspend fun deleteAccount(idToken: String) = resultOf {
+        loginDataSource.removeAccount(idToken)
     }
 
     override fun signOut() {
